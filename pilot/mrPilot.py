@@ -4,13 +4,17 @@ import math
 import time
 
 class Pilot(object):
-    def __init__(self, connection_string : str = "127.0.0.1:14550"):
+    def __init__(self, connection_string : str = "/dev/ttyACM0"):
         self.connection_string = connection_string
         self.vehicle = Vehicle
+    def setForSim(self):
+        self.connection_string = "127.0.0.1:14550"
+        self.vehicle = connect(self.connection_string, wait_ready=True)
+        
 
     def launch(self):
         print('Connecting to vehicle on:\t', self.connection_string)
-        self.vehicle = connect(self.connection_string, wait_ready=True)
+        self.vehicle = connect(self.connection_string, wait_ready=True, baud=115200)
 
     def arm(self):
         print("Basic pre-arm checks")
@@ -28,7 +32,10 @@ class Pilot(object):
         while not self.vehicle.armed:      
             print(" Waiting for arming...")
             time.sleep(1)
-
+    
+    def armForce(self):
+        self.vehicle.arm()
+    
     def set_home(self, location):
         """
         Set home location.
@@ -45,7 +52,7 @@ class Pilot(object):
 
     def changeMode(self, mode= VehicleMode("GUIDED")):
         self.vehicle.mode = mode
-
+    
     def takeoff(self, aTargetAltitude):
         self.vehicle.simple_takeoff(aTargetAltitude) 
         while True:
