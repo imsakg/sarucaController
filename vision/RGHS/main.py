@@ -14,8 +14,6 @@ np.seterr(over='ignore')
 if __name__ == '__main__':
     pass
 
-
-# folder = "C:/Users/Administrator/Desktop/UnderwaterImageEnhancement/NonPhysical/RGHS"
 folder = "/home/msa/Projects/UUVs/saruca/sarucaController/vision/underwaterTests/utils/inputs/"
 path = folder + "/MOV00016"
 files = os.listdir(path)
