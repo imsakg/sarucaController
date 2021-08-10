@@ -1,5 +1,6 @@
 from dronekit import Vehicle, VehicleMode, connect, LocationGlobalRelative, LocationGlobal
 from pymavlink import mavutil, mavlink
+from pymavlink.quaternion import QuaternionBase
 import math
 import time
 
@@ -7,15 +8,34 @@ class Pilot(object):
     def __init__(self, connection_string : str = "/dev/ttyACM0"):
         self.connection_string = connection_string
         self.vehicle = Vehicle
+        
+        self.subModes = {
+            0: 'STABILIZE',
+            1: 'ACRO',
+            2: 'ALT_HOLD',
+            3: 'AUTO',
+            4: 'GUIDED',
+            7: 'CIRCLE',
+            9: 'SURFACE',
+            16: 'POSHOLD',
+            19: 'MANUAL',
+            }
     def setForSim(self):
         self.connection_string = "127.0.0.1:14550"
         self.vehicle = connect(self.connection_string, wait_ready=True)
         
 
-    def launch(self):
+    def launch(self,deafultMode="MANUAL"):
         print('Connecting to vehicle on:\t', self.connection_string)
         self.vehicle = connect(self.connection_string, wait_ready=True, baud=115200)
+        
+        self.master = mavutil.mavlink_connection(self.connection_string,baud=115200)
+        self.boot_time = time.time()
+        self.master.wait_heartbeat()
 
+        mode_id = self.master.mode_mapping()[deafultMode]
+        self.master.mav.set_mode_send(self.master.target_system,mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,mode_id)
+        
     def arm(self):
         print("Basic pre-arm checks")
         
@@ -49,10 +69,13 @@ class Pilot(object):
         self.vehicle.armed = False
         self.vehicle.flush()
         print("Disarmed")
-
-    def changeMode(self, mode= VehicleMode("GUIDED")):
-        self.vehicle.mode = mode
     
+    def changeMode(self, mode= VehicleMode("MANUAL")):
+        self.vehicle.mode = mode
+        
+    
+    def getMode(self):
+        return self.vehicle.mode
     def takeoff(self, aTargetAltitude):
         self.vehicle.simple_takeoff(aTargetAltitude) 
         while True:
@@ -69,6 +92,30 @@ class Pilot(object):
     def playMusic(self, sheets : str = "AAAA"):
         #? Todo: Play music
         pass
+    
+    
+
+    def control(self,id, pwm=0):
+        if id < 1:
+            print("Channel 1 ve 9 araliginda olmalidir.")
+            return
+
+        if id < 9:
+            rc_channel_values = [65535 for _ in range(8)]
+            rc_channel_values[id - 1] = pwm #self.pwMaper(pwm)
+            self.master.mav.rc_channels_override_send(
+                self.master.target_system,
+                self.master.target_component,             
+                *rc_channel_values)
+    def pwMaper(self, value):
+        speedMin = -1 
+        speedMax = 1 
+        pwmMin = 1000 
+        pwmMax = 2000 
+        speedSpan = speedMax - speedMin
+        pwmSpan = pwmMax - pwmMin
+        valueScaled = float(value - speedMin) / float(speedSpan)
+        return pwmMin + (valueScaled * pwmSpan)
 
     def arm_and_takeoff(self, aTargetAltitude):
         """
@@ -440,20 +487,60 @@ class Pilot(object):
             self.vehicle.send_mavlink(msg)
             print(self.vehicle.channels)
             time.sleep(1)
+            
+    def set_target_depth(self, depth):
+        """ Sets the target depth while in depth-hold mode.
+
+        Uses https://mavlink.io/en/messages/common.html#SET_POSITION_TARGET_GLOBAL_INT
+
+        'depth' is technically an altitude, so set as negative meters below the surface
+            -> set_target_depth(-1.5) # sets target to 1.5m below the water surface.
+
+        """
+        self.master.mav.set_position_target_global_int_send(
+            int(1e3 * (time.time() - self.boot_time)), # ms since boot
+            self.master.target_system, self.master.target_component,
+            coordinate_frame=mavutil.mavlink.MAV_FRAME_GLOBAL_INT,
+            type_mask=0xdfe,  # ignore everything except z position
+            lat_int=0, long_int=0, alt=depth, # (x, y WGS84 frame pos - not used), z [m]
+            vx=0, vy=0, vz=0, # velocities in NED frame [m/s] (not used)
+            afx=0, afy=0, afz=0, yaw=0, yaw_rate=0
+            # accelerations in NED frame [N], yaw, yaw_rate
+            #  (all not supported yet, ignored in GCS Mavlink)
+        )
+
+    def set_target_attitude(self, roll, pitch, yaw):
+        """ Sets the target attitude while in depth-hold mode.
+        'roll', 'pitch', and 'yaw' are angles in degrees.
+        """
+        # https://mavlink.io/en/messages/common.html#ATTITUDE_TARGET_TYPEMASK
+        # 1<<6 = THROTTLE_IGNORE -> allow throttle to be controlled by depth_hold mode
+        bitmask = 1<<6
+
+        self.master.mav.set_attitude_target_send(
+            int(1e3 * (time.time() - self.boot_time)), # ms since boot
+            self.master.target_system, self.master.target_component,
+            bitmask,
+            # -> attitude quaternion (w, x, y, z | zero-rotation is 1, 0, 0, 0)
+            QuaternionBase([math.radians(angle) for angle in (roll, pitch, yaw)]),
+            0, 0, 0, 0 # roll rate, pitch rate, yaw rate, thrust
+        )
 
     def channelOverRide(self, channel, value):
         """
         Override RC channel with specified value.
         """
-        self.vehicle.channels.overrides[channel] = value
+        channels = self.vehicle.channels
+        channels[str(channel)] = value
+        self.vehicle.channels.overrides = channels
         self.vehicle.flush()
     
     def channelClear(self):
         """
         Clear override on all channels.
         """
-        for ch in range(1,9):
-            self.vehicle.channels.overrides[ch] = 0
+        channels = {"1":1500,"2":1500,"3":1500,"4":1500,"5":1500,"6":1500,"7":1500,"8":1500}
+        self.vehicle.channels.overrides = channels
         self.vehicle.flush()
     
     def readRC(self):
