@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Tests
+vision/ULAP/OutputImages/
+vision/RGHS/OutputImages/
+vision/toFrames/outputs/
+vision/toFrames/inputs/
