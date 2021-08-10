@@ -21,7 +21,6 @@ if __name__ == '__main__':
 
 starttime = datetime.datetime.now()
 
-# folder = "C:/Users/Administrator/Desktop/UnderwaterImageEnhancement/Physical/ULAP"
 folder = "/home/msa/Projects/UUVs/saruca/sarucaController/vision/underwaterTests/utils/inputs/"
 path = folder + "/MOV00016"
 files = os.listdir(path)
@@ -36,8 +35,8 @@ for i in range(len(files)):
         img = cv2.imread(folder +'/MOV00016/' + file)
 
         blockSize = 9
-        gimfiltR = 50  # 引导滤波时半径的大小
-        eps = 10 ** -3  # 引导滤波时epsilon的值
+        gimfiltR = 50 
+        eps = 10 ** -3
 
         DepthMap = depthMap(img)
         DepthMap = global_stretching(DepthMap)
@@ -58,9 +57,6 @@ for i in range(len(files)):
 
 
         cv2.imwrite('OutputImages/' + prefix + '_ULAP_TM.jpg', np.uint8(transmission[:, :, 2] * 255))
-
-
-        # print('AtomsphericLight',AtomsphericLight)
 
         cv2.imwrite('OutputImages/' + prefix + '_ULAP.jpg', sceneRadiance)
 
