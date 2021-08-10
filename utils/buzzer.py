@@ -1,8 +1,8 @@
+import os
+os.environ["MAVLINK20"] = "1"
 from pymavlink import mavutil
 import time
-import os
 
-os.environ["MAVLINK20"] = "1"
 
 class Buzzy(object):
     def __init__(self,vehicle):
