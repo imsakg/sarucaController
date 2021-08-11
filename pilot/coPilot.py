@@ -5,8 +5,16 @@ movements = spiralScanning.spiralMovements()
 movements.generate(2) 
 
 pilot = mrPilot.Pilot()
-
 pilot.launch()
+pilot.changeMode("MANUAL")
+pilot.armForce()
+
+def goT(channel, pwm, duration):
+    t1 = time.time()
+    while time.time()-t1<duration:
+        pilot.channelOverRide(channel,pwm)
+        time.sleep(0.1)
+    pilot.channelOverRide(channel,1500)
 
 def posHoldSpin():
     pilot.changeMode("ALT_HOLD")
