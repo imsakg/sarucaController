@@ -1,5 +1,5 @@
-from dronekit import Vehicle, VehicleMode, connect, LocationGlobalRelative, LocationGlobal
-from pymavlink import mavutil, mavlink
+from dronekit import Vehicle, VehicleMode, connect, LocationGlobalRelative, LocationGlobal, mavutil,mavlink
+from dronekit.mavlink import MAVConnection
 from pymavlink.quaternion import QuaternionBase
 import math
 import time
@@ -8,6 +8,7 @@ class Pilot(object):
     def __init__(self, connection_string : str = "/dev/ttyACM0"):
         self.connection_string = connection_string
         self.vehicle = Vehicle
+        self.channels = {"1":1500,"2":1500,"3":1500,"4":1500,"5":1500,"6":1500,"7":1500,"8":1500}
         
         self.subModes = {
             0: 'STABILIZE',
@@ -20,21 +21,33 @@ class Pilot(object):
             16: 'POSHOLD',
             19: 'MANUAL',
             }
+        self._initialize=True
+        self.wait_ready=None
+        self.timeout=30
+        self.still_waiting_interval=1
+        self.status_printer=None
+        self.vehicle_class=None
+        self.rate=4
+        self.baud=115200
+        self.heartbeat_timeout=60
+        self.source_system=255
+        self.source_component=0
+        self.use_native=False
     def setForSim(self):
-        self.connection_string = "127.0.0.1:14550"
+        self.connection_string = "/dev/ttyACM0"
         self.vehicle = connect(self.connection_string, wait_ready=True)
         
 
-    def launch(self,deafultMode="MANUAL"):
+    def launch(self,deafultMode="MANUAL",udp=False, baudRate=115200, port=14550):
         print('Connecting to vehicle on:\t', self.connection_string)
-        self.vehicle = connect(self.connection_string, wait_ready=True, baud=115200)
-        
-        self.master = mavutil.mavlink_connection(self.connection_string,baud=115200)
+        #self.vehicle = connect(self.connection_string, wait_ready=True)
+        self.handler = MAVConnection(self.connection_string, baud=self.baud, source_system=self.source_system, source_component=self.source_component, use_native=self.use_native)
+        vehicle = Vehicle(handler=self.handler)
+        vehicle.initialize(rate=self.rate, heartbeat_timeout=self.heartbeat_timeout)
+        vehicle.wait_ready(still_waiting_interval=self.still_waiting_interval,timeout=self.timeout)
+        self.vehicle = vehicle
         self.boot_time = time.time()
-        self.master.wait_heartbeat()
-
-        mode_id = self.master.mode_mapping()[deafultMode]
-        self.master.mav.set_mode_send(self.master.target_system,mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,mode_id)
+        self.master = self.handler.master
         
     def arm(self):
         print("Basic pre-arm checks")
@@ -76,6 +89,15 @@ class Pilot(object):
     
     def getMode(self):
         return self.vehicle.mode
+
+    def takedown(self, depth):
+        if depth is not None:
+            altitude = float(depth)
+            if math.isnan(altitude) or math.isinf(altitude):
+                raise ValueError("Altitude was NaN or Infinity. Please provide a real number")
+            self.master.mav.command_long_send(0, 0, mavutil.mavlink.MAV_CMD_NAV_TAKEOFF,
+                                               0, 0, 0, 0, 0, 0, 0, altitude)
+                                               
     def takeoff(self, aTargetAltitude):
         self.vehicle.simple_takeoff(aTargetAltitude) 
         while True:
@@ -497,6 +519,7 @@ class Pilot(object):
             -> set_target_depth(-1.5) # sets target to 1.5m below the water surface.
 
         """
+
         self.master.mav.set_position_target_global_int_send(
             int(1e3 * (time.time() - self.boot_time)), # ms since boot
             self.master.target_system, self.master.target_component,
@@ -507,7 +530,7 @@ class Pilot(object):
             afx=0, afy=0, afz=0, yaw=0, yaw_rate=0
             # accelerations in NED frame [N], yaw, yaw_rate
             #  (all not supported yet, ignored in GCS Mavlink)
-        )
+        ) 
 
     def set_target_attitude(self, roll, pitch, yaw):
         """ Sets the target attitude while in depth-hold mode.
@@ -526,12 +549,20 @@ class Pilot(object):
             0, 0, 0, 0 # roll rate, pitch rate, yaw rate, thrust
         )
 
-    def channelOverRide(self, channel, value):
+
+    def channelOverRide(self, channel, value, overwrite=True):
         """
         Override RC channel with specified value.
         """
-        channels = self.vehicle.channels
-        channels[str(channel)] = value
+
+        if overwrite:
+            channels = self.channels
+            channels[str(channel)] = value
+        else:
+            self.channels = {"1":1500,"2":1500,"3":1500,"4":1500,"5":1500,"6":1500,"7":1500,"8":1500}
+            channels = self.channels
+            channels[str(channel)] = value
+
         self.vehicle.channels.overrides = channels
         self.vehicle.flush()
     
@@ -539,8 +570,8 @@ class Pilot(object):
         """
         Clear override on all channels.
         """
-        channels = {"1":1500,"2":1500,"3":1500,"4":1500,"5":1500,"6":1500,"7":1500,"8":1500}
-        self.vehicle.channels.overrides = channels
+        self.channels = {"1":1500,"2":1500,"3":1500,"4":1500,"5":1500,"6":1500,"7":1500,"8":1500}
+        self.vehicle.channels.overrides = self.channels
         self.vehicle.flush()
     
     def readRC(self):
