@@ -16,20 +16,59 @@ def goT(channel, pwm, duration):
         time.sleep(0.1)
     pilot.channelOverRide(channel,1500)
 
-def posHoldSpin():
+def dive():
     pilot.changeMode("ALT_HOLD")
     pilot.armForce()
     pilot.set_target_depth(-0.5)
-    
-    roll_angle = pitch_angle = 0
-    for yaw_angle in range(0, 500, 10):
-        pilot.set_target_attitude(roll_angle, pitch_angle, yaw_angle)
-        time.sleep(1) # wait for a second
 
-    # spin the other way with 3x larger steps
-    for yaw_angle in range(500, 0, -30):
-        pilot.set_target_attitude(roll_angle, pitch_angle, yaw_angle)
-        time.sleep(1)
+def rotate(value):
+    pilot.set_target_attitude(0, 0, value)
+
+def spin(rotation="left", speed=30):
+    roll_angle = pitch_angle = 0
+    if rotation=="left":
+        # spin the other way with 3x larger steps
+        for yaw_angle in range(500, 0, -speed):
+            pilot.set_target_attitude(roll_angle, pitch_angle, yaw_angle)
+            time.sleep(1)
+    elif rotation=="right":
+        for yaw_angle in range(0, 500, speed):
+            pilot.set_target_attitude(roll_angle, pitch_angle, yaw_angle)
+            time.sleep(1) # wait for a second
+    else:
+        raise Exception("Unknown rotation")
+
+def speed2pwm(speed):
+    if speed>0:
+        pwm = 1500 + speed*10
+        return int(pwm)
+    else:
+        pwm = 1500 - speed*10
+        return int(pwm)
+
+def forward(speed=10, duration = 1):
+    pwm = speed2pwm(speed)
+    goT(channel=3, pwm=pwm, duration=duration)    
+
+def back(speed=10, duration = 1):
+    pwm = speed2pwm(speed)
+    goT(channel=3, pwm=pwm, duration=duration)    
+
+def right(speed=10, duration = 1):
+    pwm = speed2pwm(speed)
+    goT(channel=3, pwm=pwm, duration=duration)    
+
+def left(speed=10, duration = 1):
+    pwm = speed2pwm(speed)
+    goT(channel=3, pwm=pwm, duration=duration)    
+
+def down(speed=10, duration = 1):
+    pwm = speed2pwm(speed)
+    goT(channel=3, pwm=pwm, duration=duration)    
+
+def up(speed=10, duration = 1):
+    pwm = speed2pwm(speed)
+    goT(channel=3, pwm=pwm, duration=duration)    
 
 def testDrone():
     pilot.changeMode("GUIDED")
