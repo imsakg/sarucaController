@@ -643,13 +643,33 @@ class Pilot(object):
             #  (all not supported yet, ignored in GCS Mavlink)
         )
 
-    def set_target_attitude(self, roll, pitch, yaw):
+    def set_target_depthEx(self, depth):
+        msg = master.mav.set_position_target_global_int_send(
+            0,
+            0,
+            0,
+            mavutil.mavlink.MAV_FRAME_GLOBAL_INT,  # frame
+            0b0000111111111000,
+            0,
+            0,
+            depth,
+            0,
+            0,
+            0,  # x, y, z velocity in m/s (not used)
+            0,
+            0,
+            0,  # x, y, z acceleration (not supported yet, ignored in GCS Mavlink)
+            0,
+            0,
+        )  # yaw, yawrate (not supported yet, ignored in GCS Mavlink)
+
+    def set_target_attitude(self, roll, pitch, yaw, control_yaw=True):
         """Sets the target attitude while in depth-hold mode.
         'roll', 'pitch', and 'yaw' are angles in degrees.
         """
         # https://mavlink.io/en/messages/common.html#ATTITUDE_TARGET_TYPEMASK
         # 1<<6 = THROTTLE_IGNORE -> allow throttle to be controlled by depth_hold mode
-        bitmask = 1 << 6
+        bitmask = (1 << 6 | 1 << 3) if control_yaw else 1 << 6
 
         self.master.mav.set_attitude_target_send(
             int(1e3 * (time.time() - self.boot_time)),  # ms since boot
