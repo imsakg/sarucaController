@@ -1,57 +1,83 @@
-from dronekit import Vehicle, VehicleMode, connect, LocationGlobalRelative, LocationGlobal, mavutil,mavlink
+from dronekit import (
+    Vehicle,
+    VehicleMode,
+    connect,
+    LocationGlobalRelative,
+    LocationGlobal,
+    mavutil,
+    mavlink,
+)
 from dronekit.mavlink import MAVConnection
 from pymavlink.quaternion import QuaternionBase
 import math
 import time
 
+
 class Pilot(object):
-    def __init__(self, connection_string : str = "/dev/ttyACM0"):
+    def __init__(self, connection_string: str = "/dev/ttyACM0"):
         self.connection_string = connection_string
         self.vehicle = Vehicle
-        self.channels = {"1":1500,"2":1500,"3":1500,"4":1500,"5":1500,"6":1500,"7":1500,"8":1500}
-        
+        self.channels = {
+            "1": 1500,
+            "2": 1500,
+            "3": 1500,
+            "4": 1500,
+            "5": 1500,
+            "6": 1500,
+            "7": 1500,
+            "8": 1500,
+        }
+
         self.subModes = {
-            0: 'STABILIZE',
-            1: 'ACRO',
-            2: 'ALT_HOLD',
-            3: 'AUTO',
-            4: 'GUIDED',
-            7: 'CIRCLE',
-            9: 'SURFACE',
-            16: 'POSHOLD',
-            19: 'MANUAL',
-            }
-        self._initialize=True
-        self.wait_ready=None
-        self.timeout=30
-        self.still_waiting_interval=1
-        self.status_printer=None
-        self.vehicle_class=None
-        self.rate=4
-        self.baud=115200
-        self.heartbeat_timeout=60
-        self.source_system=255
-        self.source_component=0
-        self.use_native=False
+            0: "STABILIZE",
+            1: "ACRO",
+            2: "ALT_HOLD",
+            3: "AUTO",
+            4: "GUIDED",
+            7: "CIRCLE",
+            9: "SURFACE",
+            16: "POSHOLD",
+            19: "MANUAL",
+        }
+        self._initialize = True
+        self.wait_ready = None
+        self.timeout = 30
+        self.still_waiting_interval = 1
+        self.status_printer = None
+        self.vehicle_class = None
+        self.rate = 4
+        self.baud = 115200
+        self.heartbeat_timeout = 60
+        self.source_system = 255
+        self.source_component = 0
+        self.use_native = False
+
     def setForSim(self):
         self.connection_string = "/dev/ttyACM0"
         self.vehicle = connect(self.connection_string, wait_ready=True)
-        
 
-    def launch(self,deafultMode="MANUAL",udp=False, baudRate=115200, port=14550):
-        print('Connecting to vehicle on:\t', self.connection_string)
-        #self.vehicle = connect(self.connection_string, wait_ready=True)
-        self.handler = MAVConnection(self.connection_string, baud=self.baud, source_system=self.source_system, source_component=self.source_component, use_native=self.use_native)
+    def launch(self, deafultMode="MANUAL", udp=False, baudRate=115200, port=14550):
+        print("Connecting to vehicle on:\t", self.connection_string)
+        # self.vehicle = connect(self.connection_string, wait_ready=True)
+        self.handler = MAVConnection(
+            self.connection_string,
+            baud=self.baud,
+            source_system=self.source_system,
+            source_component=self.source_component,
+            use_native=self.use_native,
+        )
         vehicle = Vehicle(handler=self.handler)
         vehicle.initialize(rate=self.rate, heartbeat_timeout=self.heartbeat_timeout)
-        vehicle.wait_ready(still_waiting_interval=self.still_waiting_interval,timeout=self.timeout)
+        vehicle.wait_ready(
+            still_waiting_interval=self.still_waiting_interval, timeout=self.timeout
+        )
         self.vehicle = vehicle
         self.boot_time = time.time()
         self.master = self.handler.master
-        
+
     def arm(self):
         print("Basic pre-arm checks")
-        
+
         # Don't let the user try to arm until autopilot is ready
         while not self.vehicle.is_armable:
             print(" Waiting for vehicle to initialise...")
@@ -62,13 +88,13 @@ class Pilot(object):
         self.vehicle.mode = VehicleMode("GUIDED")
         self.vehicle.armed = True
 
-        while not self.vehicle.armed:      
+        while not self.vehicle.armed:
             print(" Waiting for arming...")
             time.sleep(1)
-    
+
     def armForce(self):
         self.vehicle.arm()
-    
+
     def set_home(self, location):
         """
         Set home location.
@@ -82,11 +108,10 @@ class Pilot(object):
         self.vehicle.armed = False
         self.vehicle.flush()
         print("Disarmed")
-    
-    def changeMode(self, mode= VehicleMode("MANUAL")):
+
+    def changeMode(self, mode=VehicleMode("MANUAL")):
         self.vehicle.mode = mode
-        
-    
+
     def getMode(self):
         return self.vehicle.mode
 
@@ -94,46 +119,51 @@ class Pilot(object):
         if depth is not None:
             altitude = float(depth)
             if math.isnan(altitude) or math.isinf(altitude):
-                raise ValueError("Altitude was NaN or Infinity. Please provide a real number")
-            self.master.mav.command_long_send(0, 0, mavutil.mavlink.MAV_CMD_NAV_TAKEOFF,
-                                               0, 0, 0, 0, 0, 0, 0, altitude)
-                                               
-    def takeoff(self, aTargetAltitude):
-        self.vehicle.simple_takeoff(aTargetAltitude) 
-        while True:
-                    print(" Altitude: ", self.vehicle.location.global_relative_frame.alt)      
-                    if self.vehicle.location.global_relative_frame.alt>=aTargetAltitude*0.95: #Trigger just below target alt.
-                        print("Reached target altitude")
-                        break
-                    time.sleep(1)
+                raise ValueError(
+                    "Altitude was NaN or Infinity. Please provide a real number"
+                )
+            self.master.mav.command_long_send(
+                0, 0, mavutil.mavlink.MAV_CMD_NAV_TAKEOFF, 0, 0, 0, 0, 0, 0, 0, altitude
+            )
 
-    def reboot(self, duration : float = 1.0):
+    def takeoff(self, aTargetAltitude):
+        self.vehicle.simple_takeoff(aTargetAltitude)
+        while True:
+            print(" Altitude: ", self.vehicle.location.global_relative_frame.alt)
+            if (
+                self.vehicle.location.global_relative_frame.alt
+                >= aTargetAltitude * 0.95
+            ):  # Trigger just below target alt.
+                print("Reached target altitude")
+                break
+            time.sleep(1)
+
+    def reboot(self, duration: float = 1.0):
         time.sleep(duration)
         self.vehicle.reboot()
-    
-    def playMusic(self, sheets : str = "AAAA"):
-        #? Todo: Play music
-        pass
-    
-    
 
-    def control(self,id, pwm=0):
+    def playMusic(self, sheets: str = "AAAA"):
+        # ? Todo: Play music
+        pass
+
+    def control(self, id, pwm=0):
         if id < 1:
-            print("Channel 1 ve 9 araliginda olmalidir.")
             return
 
         if id < 9:
             rc_channel_values = [65535 for _ in range(8)]
-            rc_channel_values[id - 1] = pwm #self.pwMaper(pwm)
+            rc_channel_values[id - 1] = pwm  # self.pwMaper(pwm)
             self.master.mav.rc_channels_override_send(
                 self.master.target_system,
-                self.master.target_component,             
-                *rc_channel_values)
+                self.master.target_component,
+                *rc_channel_values
+            )
+
     def pwMaper(self, value):
-        speedMin = -1 
-        speedMax = 1 
-        pwmMin = 1000 
-        pwmMax = 2000 
+        speedMin = -1
+        speedMax = 1
+        pwmMin = 1000
+        pwmMax = 2000
         speedSpan = speedMax - speedMin
         pwmSpan = pwmMax - pwmMin
         valueScaled = float(value - speedMin) / float(speedSpan)
@@ -150,24 +180,26 @@ class Pilot(object):
             print(" Waiting for vehicle to initialise...")
             time.sleep(1)
 
-            
         print("Arming motors")
         # Copter should arm in GUIDED mode
         self.vehicle.mode = VehicleMode("GUIDED")
         self.vehicle.armed = True
 
-        while not self.vehicle.armed:      
+        while not self.vehicle.armed:
             print(" Waiting for arming...")
             time.sleep(1)
 
         print("Taking off!")
-        self.vehicle.simple_takeoff(aTargetAltitude) # Take off to target altitude
+        self.vehicle.simple_takeoff(aTargetAltitude)  # Take off to target altitude
 
-        # Wait until the vehicle reaches a safe height before processing the goto (otherwise the command 
+        # Wait until the vehicle reaches a safe height before processing the goto (otherwise the command
         #  after Vehicle.simple_takeoff will execute immediately).
         while True:
-            print(" Altitude: ", self.vehicle.location.global_relative_frame.alt)      
-            if self.vehicle.location.global_relative_frame.alt>=aTargetAltitude*0.95: #Trigger just below target alt.
+            print(" Altitude: ", self.vehicle.location.global_relative_frame.alt)
+            if (
+                self.vehicle.location.global_relative_frame.alt
+                >= aTargetAltitude * 0.95
+            ):  # Trigger just below target alt.
                 print("Reached target altitude")
                 break
             time.sleep(1)
@@ -193,57 +225,64 @@ class Pilot(object):
     http://dev.ardupilot.com/wiki/copter-commands-in-guided-mode/
     """
 
-    def condition_yaw(self,heading, relative=True):
+    def condition_yaw(self, heading, relative=True):
         """
         Send MAV_CMD_CONDITION_YAW message to point vehicle at a specified heading (in degrees).
 
         This method sets an absolute heading by default, but you can set the `relative` parameter
         to `True` to set yaw relative to the current yaw heading.
 
-        By default the yaw of the vehicle will follow the direction of travel. After setting 
-        the yaw using this function there is no way to return to the default yaw "follow direction 
+        By default the yaw of the vehicle will follow the direction of travel. After setting
+        the yaw using this function there is no way to return to the default yaw "follow direction
         of travel" behaviour (https://github.com/diydrones/ardupilot/issues/2427)
 
-        For more information see: 
+        For more information see:
         http://copter.ardupilot.com/wiki/common-mavlink-mission-command-messages-mav_cmd/#mav_cmd_condition_yaw
         """
         if relative:
-            is_relative = 1 #yaw relative to direction of travel
+            is_relative = 1  # yaw relative to direction of travel
         else:
-            is_relative = 0 #yaw is an absolute angle
+            is_relative = 0  # yaw is an absolute angle
         # create the CONDITION_YAW command using command_long_encode()
         msg = self.vehicle.message_factory.command_long_encode(
-            0, 0,    # target system, target component
-            mavutil.mavlink.MAV_CMD_CONDITION_YAW, #command
-            0, #confirmation
-            heading,    # param 1, yaw in degrees
-            0,          # param 2, yaw speed deg/s
-            1,          # param 3, direction -1 ccw, 1 cw
-            is_relative, # param 4, relative offset 1, absolute angle 0
-            0, 0, 0)    # param 5 ~ 7 not used
+            0,
+            0,  # target system, target component
+            mavutil.mavlink.MAV_CMD_CONDITION_YAW,  # command
+            0,  # confirmation
+            heading,  # param 1, yaw in degrees
+            0,  # param 2, yaw speed deg/s
+            1,  # param 3, direction -1 ccw, 1 cw
+            is_relative,  # param 4, relative offset 1, absolute angle 0
+            0,
+            0,
+            0,
+        )  # param 5 ~ 7 not used
         # send command to vehicle
         self.vehicle.send_mavlink(msg)
 
-
     def set_roi(self, location):
         """
-        Send MAV_CMD_DO_SET_ROI message to point camera gimbal at a 
+        Send MAV_CMD_DO_SET_ROI message to point camera gimbal at a
         specified region of interest (LocationGlobal).
         The vehicle may also turn to face the ROI.
 
-        For more information see: 
+        For more information see:
         http://copter.ardupilot.com/common-mavlink-mission-command-messages-mav_cmd/#mav_cmd_do_set_roi
         """
         # create the MAV_CMD_DO_SET_ROI command
         msg = self.vehicle.message_factory.command_long_encode(
-            0, 0,    # target system, target component
-            mavutil.mavlink.MAV_CMD_DO_SET_ROI, #command
-            0, #confirmation
-            0, 0, 0, 0, #params 1-4
+            0,
+            0,  # target system, target component
+            mavutil.mavlink.MAV_CMD_DO_SET_ROI,  # command
+            0,  # confirmation
+            0,
+            0,
+            0,
+            0,  # params 1-4
             location.lat,
             location.lon,
-            location.alt
-            )
+            location.alt,
+        )
         # send command to vehicle
         self.vehicle.send_mavlink(msg)
 
@@ -261,13 +300,13 @@ class Pilot(object):
     * get_bearing - Get the bearing in degrees to a LocationGlobal
     """
 
-    def get_location_metres(self,original_location, dNorth, dEast, alt = None):
+    def get_location_metres(self, original_location, dNorth, dEast, alt=None):
         """
-        Returns a LocationGlobal object containing the latitude/longitude `dNorth` and `dEast` metres from the 
+        Returns a LocationGlobal object containing the latitude/longitude `dNorth` and `dEast` metres from the
         specified `original_location`. The returned LocationGlobal has the same `alt` value
         as `original_location`.
 
-        The function is useful when you want to move the vehicle around specifying locations relative to 
+        The function is useful when you want to move the vehicle around specifying locations relative to
         the current vehicle position.
 
         The algorithm is relatively accurate over small distances (10m within 1km) except close to the poles.
@@ -275,60 +314,62 @@ class Pilot(object):
         For more information see:
         http://gis.stackexchange.com/questions/2951/algorithm-for-offsetting-a-latitude-longitude-by-some-amount-of-meters
         """
-        earth_radius = 6378137.0 #Radius of "spherical" earth
-        #Coordinate offsets in radians
-        dLat = dNorth/earth_radius
-        dLon = dEast/(earth_radius*math.cos(math.pi*original_location.lat/180))
+        earth_radius = 6378137.0  # Radius of "spherical" earth
+        # Coordinate offsets in radians
+        dLat = dNorth / earth_radius
+        dLon = dEast / (earth_radius * math.cos(math.pi * original_location.lat / 180))
 
-        #New position in decimal degrees
-        newlat = original_location.lat + (dLat * 180/math.pi)
-        newlon = original_location.lon + (dLon * 180/math.pi)
+        # New position in decimal degrees
+        newlat = original_location.lat + (dLat * 180 / math.pi)
+        newlon = original_location.lon + (dLon * 180 / math.pi)
         if alt is not None:
             if type(original_location) is LocationGlobal:
-                
-                targetlocation=LocationGlobal(newlat, newlon,alt)
+
+                targetlocation = LocationGlobal(newlat, newlon, alt)
             elif type(original_location) is LocationGlobalRelative:
-                targetlocation=LocationGlobalRelative(newlat, newlon,alt)
-            else:
-                raise Exception("Invalid Location object passed")
-                
-        else:
-            if type(original_location) is LocationGlobal:
-                
-                targetlocation=LocationGlobal(newlat, newlon,original_location.alt)
-            elif type(original_location) is LocationGlobalRelative:
-                targetlocation=LocationGlobalRelative(newlat, newlon,original_location.alt)
+                targetlocation = LocationGlobalRelative(newlat, newlon, alt)
             else:
                 raise Exception("Invalid Location object passed")
 
-        return targetlocation;
+        else:
+            if type(original_location) is LocationGlobal:
+
+                targetlocation = LocationGlobal(newlat, newlon, original_location.alt)
+            elif type(original_location) is LocationGlobalRelative:
+                targetlocation = LocationGlobalRelative(
+                    newlat, newlon, original_location.alt
+                )
+            else:
+                raise Exception("Invalid Location object passed")
+
+        return targetlocation
 
     def get_distance_metres(self, aLocation1, aLocation2):
         """
         Returns the ground distance in metres between two LocationGlobal objects.
 
-        This method is an approximation, and will not be accurate over large distances and close to the 
-        earth's poles. It comes from the ArduPilot test code: 
+        This method is an approximation, and will not be accurate over large distances and close to the
+        earth's poles. It comes from the ArduPilot test code:
         https://github.com/diydrones/ardupilot/blob/master/Tools/autotest/common.py
         """
         dlat = aLocation2.lat - aLocation1.lat
         dlong = aLocation2.lon - aLocation1.lon
-        return math.sqrt((dlat*dlat) + (dlong*dlong)) * 1.113195e5
+        return math.sqrt((dlat * dlat) + (dlong * dlong)) * 1.113195e5
 
     def get_bearing(self, aLocation1, aLocation2):
         """
         Returns the bearing between the two LocationGlobal objects passed as parameters.
 
-        This method is an approximation, and may not be accurate over large distances and close to the 
-        earth's poles. It comes from the ArduPilot test code: 
+        This method is an approximation, and may not be accurate over large distances and close to the
+        earth's poles. It comes from the ArduPilot test code:
         https://github.com/diydrones/ardupilot/blob/master/Tools/autotest/common.py
-        """	
+        """
         off_x = aLocation2.lon - aLocation1.lon
         off_y = aLocation2.lat - aLocation1.lat
         bearing = 90.00 + math.atan2(-off_y, off_x) * 57.2957795
         if bearing < 0:
             bearing += 360.00
-        return bearing;
+        return bearing
 
     """
     Functions to move the vehicle to a specified position (as opposed to controlling movement by setting velocity components).
@@ -351,74 +392,87 @@ class Pilot(object):
 
         For more information see: https://pixhawk.ethz.ch/mavlink/#SET_POSITION_TARGET_GLOBAL_INT
 
-        See the above link for information on the type_mask (0=enable, 1=ignore). 
+        See the above link for information on the type_mask (0=enable, 1=ignore).
         At time of writing, acceleration and yaw bits are ignored.
         """
         msg = self.vehicle.message_factory.set_position_target_global_int_encode(
-            0,       # time_boot_ms (not used)
-            0, 0,    # target system, target component
-            mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT, # frame
-            0b0000111111111000, # type_mask (only speeds enabled)
-            aLocation.lat*1e7, # lat_int - X Position in WGS84 frame in 1e7 * meters
-            aLocation.lon*1e7, # lon_int - Y Position in WGS84 frame in 1e7 * meters
-            aLocation.alt, # alt - Altitude in meters in AMSL altitude, not WGS84 if absolute or relative, above terrain if GLOBAL_TERRAIN_ALT_INT
-            0, # X velocity in NED frame in m/s
-            0, # Y velocity in NED frame in m/s
-            0, # Z velocity in NED frame in m/s
-            0, 0, 0, # afx, afy, afz acceleration (not supported yet, ignored in GCS_Mavlink)
-            0, 0)    # yaw, yaw_rate (not supported yet, ignored in GCS_Mavlink) 
+            0,  # time_boot_ms (not used)
+            0,
+            0,  # target system, target component
+            mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,  # frame
+            0b0000111111111000,  # type_mask (only speeds enabled)
+            aLocation.lat * 1e7,  # lat_int - X Position in WGS84 frame in 1e7 * meters
+            aLocation.lon * 1e7,  # lon_int - Y Position in WGS84 frame in 1e7 * meters
+            aLocation.alt,  # alt - Altitude in meters in AMSL altitude, not WGS84 if absolute or relative, above terrain if GLOBAL_TERRAIN_ALT_INT
+            0,  # X velocity in NED frame in m/s
+            0,  # Y velocity in NED frame in m/s
+            0,  # Z velocity in NED frame in m/s
+            0,
+            0,
+            0,  # afx, afy, afz acceleration (not supported yet, ignored in GCS_Mavlink)
+            0,
+            0,
+        )  # yaw, yaw_rate (not supported yet, ignored in GCS_Mavlink)
         # send command to vehicle
         self.vehicle.send_mavlink(msg)
 
     def goto_position_target_local_ned(self, north, east, down):
-        """	
-        Send SET_POSITION_TARGET_LOCAL_NED command to request the vehicle fly to a specified 
+        """
+        Send SET_POSITION_TARGET_LOCAL_NED command to request the vehicle fly to a specified
         location in the North, East, Down frame.
 
-        It is important to remember that in this frame, positive altitudes are entered as negative 
+        It is important to remember that in this frame, positive altitudes are entered as negative
         "Down" values. So if down is "10", this will be 10 metres below the home altitude.
 
         Starting from AC3.3 the method respects the frame setting. Prior to that the frame was
-        ignored. For more information see: 
+        ignored. For more information see:
         http://dev.ardupilot.com/wiki/copter-commands-in-guided-mode/#set_position_target_local_ned
 
-        See the above link for information on the type_mask (0=enable, 1=ignore). 
+        See the above link for information on the type_mask (0=enable, 1=ignore).
         At time of writing, acceleration and yaw bits are ignored.
 
         """
         msg = self.vehicle.message_factory.set_position_target_local_ned_encode(
-            0,       # time_boot_ms (not used)
-            0, 0,    # target system, target component
-            mavutil.mavlink.MAV_FRAME_LOCAL_NED, # frame
-            0b0000111111111000, # type_mask (only positions enabled)
-            north, east, down, # x, y, z positions (or North, East, Down in the MAV_FRAME_BODY_NED frame
-            0, 0, 0, # x, y, z velocity in m/s  (not used)
-            0, 0, 0, # x, y, z acceleration (not supported yet, ignored in GCS_Mavlink)
-            0, 0)    # yaw, yaw_rate (not supported yet, ignored in GCS_Mavlink) 
+            0,  # time_boot_ms (not used)
+            0,
+            0,  # target system, target component
+            mavutil.mavlink.MAV_FRAME_LOCAL_NED,  # frame
+            0b0000111111111000,  # type_mask (only positions enabled)
+            north,
+            east,
+            down,  # x, y, z positions (or North, East, Down in the MAV_FRAME_BODY_NED frame
+            0,
+            0,
+            0,  # x, y, z velocity in m/s  (not used)
+            0,
+            0,
+            0,  # x, y, z acceleration (not supported yet, ignored in GCS_Mavlink)
+            0,
+            0,
+        )  # yaw, yaw_rate (not supported yet, ignored in GCS_Mavlink)
         # send command to vehicle
         self.vehicle.send_mavlink(msg)
-    
-        
-    def goto(self, dNorth, dEast, alt = None, gotoFunction=Vehicle.simple_goto):
+
+    def goto(self, dNorth, dEast, alt=None, gotoFunction=Vehicle.simple_goto):
         """
         Moves the vehicle to a position dNorth metres North and dEast metres East of the current position.
 
-        The method takes a function pointer argument with a single `dronekit.lib.LocationGlobal` parameter for 
-        the target position. This allows it to be called with different position-setting commands. 
+        The method takes a function pointer argument with a single `dronekit.lib.LocationGlobal` parameter for
+        the target position. This allows it to be called with different position-setting commands.
         By default it uses the standard method: dronekit.lib.Vehicle.simple_goto().
 
         The method reports the distance to target every two seconds.
         """
-        
+
         currentLocation = self.vehicle.location.global_relative_frame
         targetLocation = self.get_location_metres(currentLocation, dNorth, dEast, alt)
         targetDistance = self.get_distance_metres(currentLocation, targetLocation)
         gotoFunction(self.vehicle, targetLocation)
-        
-        #print "DEBUG: targetLocation: %s" % targetLocation
-        #print "DEBUG: targetLocation: %s" % targetDistance
 
-        ''' #! calculate total distance to travel
+        # print "DEBUG: targetLocation: %s" % targetLocation
+        # print "DEBUG: targetLocation: %s" % targetDistance
+
+        """ #! calculate total distance to travel
         while self.vehicle.mode.name=="GUIDED": #Stop action if we are no longer in guided mode.
             #print "DEBUG: mode: %s" % vehicle.mode.name
             remainingDistance=self.get_distance_metres(self.vehicle.location.global_relative_frame, targetLocation)
@@ -427,8 +481,8 @@ class Pilot(object):
                 print("Reached target")
                 break;
             time.sleep(2)
-        '''
-        return currentLocation,targetLocation, targetDistance
+        """
+        return currentLocation, targetLocation, targetDistance
 
     """
     Functions that move the vehicle by specifying the velocity components in each direction.
@@ -446,30 +500,39 @@ class Pilot(object):
         Move vehicle in direction based on specified velocity vectors and
         for the specified duration.
 
-        This uses the SET_POSITION_TARGET_LOCAL_NED command with a type mask enabling only 
-        velocity components 
+        This uses the SET_POSITION_TARGET_LOCAL_NED command with a type mask enabling only
+        velocity components
         (http://dev.ardupilot.com/wiki/copter-commands-in-guided-mode/#set_position_target_local_ned).
-        
+
         Note that from AC3.3 the message should be re-sent every second (after about 3 seconds
         with no message the velocity will drop back to zero). In AC3.2.1 and earlier the specified
-        velocity persists until it is canceled. The code below should work on either version 
+        velocity persists until it is canceled. The code below should work on either version
         (sending the message multiple times does not cause problems).
-        
-        See the above link for information on the type_mask (0=enable, 1=ignore). 
+
+        See the above link for information on the type_mask (0=enable, 1=ignore).
         At time of writing, acceleration and yaw bits are ignored.
         """
         msg = self.vehicle.message_factory.set_position_target_local_ned_encode(
-            0,       # time_boot_ms (not used)
-            0, 0,    # target system, target component
-            mavutil.mavlink.MAV_FRAME_LOCAL_NED, # frame
-            0b0000111111000111, # type_mask (only speeds enabled)
-            0, 0, 0, # x, y, z positions (not used)
-            velocity_x, velocity_y, velocity_z, # x, y, z velocity in m/s
-            0, 0, 0, # x, y, z acceleration (not supported yet, ignored in GCS_Mavlink)
-            0, 0)    # yaw, yaw_rate (not supported yet, ignored in GCS_Mavlink) 
+            0,  # time_boot_ms (not used)
+            0,
+            0,  # target system, target component
+            mavutil.mavlink.MAV_FRAME_LOCAL_NED,  # frame
+            0b0000111111000111,  # type_mask (only speeds enabled)
+            0,
+            0,
+            0,  # x, y, z positions (not used)
+            velocity_x,
+            velocity_y,
+            velocity_z,  # x, y, z velocity in m/s
+            0,
+            0,
+            0,  # x, y, z acceleration (not supported yet, ignored in GCS_Mavlink)
+            0,
+            0,
+        )  # yaw, yaw_rate (not supported yet, ignored in GCS_Mavlink)
 
         # send command to vehicle on 1 Hz cycle
-        for x in range(0,duration):
+        for x in range(0, duration):
             self.vehicle.send_mavlink(msg)
             time.sleep(1)
 
@@ -477,79 +540,129 @@ class Pilot(object):
         """
         Move vehicle in direction based on specified velocity vectors.
 
-        This uses the SET_POSITION_TARGET_GLOBAL_INT command with type mask enabling only 
-        velocity components 
+        This uses the SET_POSITION_TARGET_GLOBAL_INT command with type mask enabling only
+        velocity components
         (http://dev.ardupilot.com/wiki/copter-commands-in-guided-mode/#set_position_target_global_int).
-        
+
         Note that from AC3.3 the message should be re-sent every second (after about 3 seconds
         with no message the velocity will drop back to zero). In AC3.2.1 and earlier the specified
-        velocity persists until it is canceled. The code below should work on either version 
+        velocity persists until it is canceled. The code below should work on either version
         (sending the message multiple times does not cause problems).
-        
-        See the above link for information on the type_mask (0=enable, 1=ignore). 
+
+        See the above link for information on the type_mask (0=enable, 1=ignore).
         At time of writing, acceleration and yaw bits are ignored.
         """
 
         msg = self.vehicle.message_factory.set_position_target_global_int_encode(
-            0,       # time_boot_ms (not used)
-            0, 0,    # target system, target component
-            mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT, # frame
-            0b0000111111000111, # type_mask (only speeds enabled)
-            0, # lat_int - X Position in WGS84 frame in 1e7 * meters
-            0, # lon_int - Y Position in WGS84 frame in 1e7 * meters
-            0, # alt - Altitude in meters in AMSL altitude(not WGS84 if absolute or relative)
+            0,  # time_boot_ms (not used)
+            0,
+            0,  # target system, target component
+            mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,  # frame
+            0b0000111111000111,  # type_mask (only speeds enabled)
+            0,  # lat_int - X Position in WGS84 frame in 1e7 * meters
+            0,  # lon_int - Y Position in WGS84 frame in 1e7 * meters
+            0,  # alt - Altitude in meters in AMSL altitude(not WGS84 if absolute or relative)
             # altitude above terrain if GLOBAL_TERRAIN_ALT_INT
-            velocity_x, # X velocity in NED frame in m/s
-            velocity_y, # Y velocity in NED frame in m/s
-            velocity_z, # Z velocity in NED frame in m/s
-            0, 0, 0, # afx, afy, afz acceleration (not supported yet, ignored in GCS_Mavlink)
-            0, 0)    # yaw, yaw_rate (not supported yet, ignored in GCS_Mavlink) 
+            velocity_x,  # X velocity in NED frame in m/s
+            velocity_y,  # Y velocity in NED frame in m/s
+            velocity_z,  # Z velocity in NED frame in m/s
+            0,
+            0,
+            0,  # afx, afy, afz acceleration (not supported yet, ignored in GCS_Mavlink)
+            0,
+            0,
+        )  # yaw, yaw_rate (not supported yet, ignored in GCS_Mavlink)
 
         # send command to vehicle on 1 Hz cycle
-        for x in range(0,duration):
+        for x in range(0, duration):
             self.vehicle.send_mavlink(msg)
             print(self.vehicle.channels)
             time.sleep(1)
-            
+
     def set_target_depth(self, depth):
-        """ Sets the target depth while in depth-hold mode.
-
+        """Sets the target depth while in depth-hold mode.
         Uses https://mavlink.io/en/messages/common.html#SET_POSITION_TARGET_GLOBAL_INT
-
         'depth' is technically an altitude, so set as negative meters below the surface
             -> set_target_depth(-1.5) # sets target to 1.5m below the water surface.
+        SET_POSITION_TARGET_GLOBAL_INT ( #86 )
+            [Message] Sets a desired vehicle position, velocity, and/or acceleration in a global coordinate system (WGS84). Used by an external controller to command the vehicle (manual controller or other system).
 
+            Field Name	Type	Units	Values	Description
+            time_boot_ms	uint32_t	ms		Timestamp (time since system boot). The rationale for the timestamp in the setpoint is to allow the system to compensate for the transport delay of the setpoint. This allows the system to compensate processing latency.
+            target_system	uint8_t			System ID
+            target_component	uint8_t			Component ID
+            coordinate_frame	uint8_t		MAV_FRAME	Valid options are: MAV_FRAME_GLOBAL_INT = 5, MAV_FRAME_GLOBAL_RELATIVE_ALT_INT = 6, MAV_FRAME_GLOBAL_TERRAIN_ALT_INT = 11
+            type_mask	uint16_t		POSITION_TARGET_TYPEMASK	Bitmap to indicate which dimensions should be ignored by the vehicle.
+            lat_int	int32_t	degE7		X Position in WGS84 frame
+            lon_int	int32_t	degE7		Y Position in WGS84 frame
+            alt	float	m		Altitude (MSL, Relative to home, or AGL - depending on frame)
+            vx	float	m/s		X velocity in NED frame
+            vy	float	m/s		Y velocity in NED frame
+            vz	float	m/s		Z velocity in NED frame
+            afx	float	m/s/s		X acceleration or force (if bit 10 of type_mask is set) in NED frame in meter / s^2 or N
+            afy	float	m/s/s		Y acceleration or force (if bit 10 of type_mask is set) in NED frame in meter / s^2 or N
+            afz	float	m/s/s		Z acceleration or force (if bit 10 of type_mask is set) in NED frame in meter / s^2 or N
+            yaw	float	rad		yaw setpoint
+            yaw_rate	float	rad/s		yaw rate setpoint
+
+        POSITION_TARGET_TYPEMASK: bitfield constants for the type of data specified in the
+            [Enum] Bitmap to indicate which dimensions should be ignored by the vehicle: a value of 0b0000000000000000 or 0b0000001000000000 indicates that none of the setpoint dimensions should be ignored. If bit 9 is set the floats afx afy afz should be interpreted as force instead of acceleration.
+
+            Value	Field Name	Description
+            1	POSITION_TARGET_TYPEMASK_X_IGNORE	Ignore position x
+            2	POSITION_TARGET_TYPEMASK_Y_IGNORE	Ignore position y
+            4	POSITION_TARGET_TYPEMASK_Z_IGNORE	Ignore position z
+            8	POSITION_TARGET_TYPEMASK_VX_IGNORE	Ignore velocity x
+            16	POSITION_TARGET_TYPEMASK_VY_IGNORE	Ignore velocity y
+            32	POSITION_TARGET_TYPEMASK_VZ_IGNORE	Ignore velocity z
+            64	POSITION_TARGET_TYPEMASK_AX_IGNORE	Ignore acceleration x
+            128	POSITION_TARGET_TYPEMASK_AY_IGNORE	Ignore acceleration y
+            256	POSITION_TARGET_TYPEMASK_AZ_IGNORE	Ignore acceleration z
+            512	POSITION_TARGET_TYPEMASK_FORCE_SET	Use force instead of acceleration
+            1024	POSITION_TARGET_TYPEMASK_YAW_IGNORE	Ignore yaw
+            2048	POSITION_TARGET_TYPEMASK_YAW_RATE_IGNORE	Ignore yaw rate
         """
-
         self.master.mav.set_position_target_global_int_send(
-            int(1e3 * (time.time() - self.boot_time)), # ms since boot
-            self.master.target_system, self.master.target_component,
+            int(1e3 * (time.time() - self.boot_time)),  # ms since boot
+            self.master.target_system,
+            self.master.target_component,
             coordinate_frame=mavutil.mavlink.MAV_FRAME_GLOBAL_INT,
-            type_mask=0xdfe,  # ignore everything except z position
-            lat_int=0, lon_int=0, alt=depth, # (x, y WGS84 frame pos - not used), z [m]
-            vx=0, vy=0, vz=0, # velocities in NED frame [m/s] (not used)
-            afx=0, afy=0, afz=0, yaw=0, yaw_rate=0
+            type_mask=0xFFB,  # ignore everything except z position # 0b0000111111111011 orginal : 0xdfe 0b110111111110
+            lat_int=0,
+            lon_int=0,
+            alt=depth,  # (x, y WGS84 frame pos - not used), z [m]
+            vx=0,
+            vy=0,
+            vz=0,  # velocities in NED frame [m/s] (not used)
+            afx=0,
+            afy=0,
+            afz=0,
+            yaw=0,
+            yaw_rate=0
             # accelerations in NED frame [N], yaw, yaw_rate
             #  (all not supported yet, ignored in GCS Mavlink)
-        ) 
+        )
 
     def set_target_attitude(self, roll, pitch, yaw):
-        """ Sets the target attitude while in depth-hold mode.
+        """Sets the target attitude while in depth-hold mode.
         'roll', 'pitch', and 'yaw' are angles in degrees.
         """
         # https://mavlink.io/en/messages/common.html#ATTITUDE_TARGET_TYPEMASK
         # 1<<6 = THROTTLE_IGNORE -> allow throttle to be controlled by depth_hold mode
-        bitmask = 1<<6
+        bitmask = 1 << 6
 
         self.master.mav.set_attitude_target_send(
-            int(1e3 * (time.time() - self.boot_time)), # ms since boot
-            self.master.target_system, self.master.target_component,
+            int(1e3 * (time.time() - self.boot_time)),  # ms since boot
+            self.master.target_system,
+            self.master.target_component,
             bitmask,
             # -> attitude quaternion (w, x, y, z | zero-rotation is 1, 0, 0, 0)
             QuaternionBase([math.radians(angle) for angle in (roll, pitch, yaw)]),
-            0, 0, 0, 0 # roll rate, pitch rate, yaw rate, thrust
+            0,
+            0,
+            0,
+            0,  # roll rate, pitch rate, yaw rate, thrust
         )
-
 
     def channelOverRide(self, channel, value, overwrite=True):
         """
@@ -560,21 +673,39 @@ class Pilot(object):
             channels = self.channels
             channels[str(channel)] = value
         else:
-            self.channels = {"1":1500,"2":1500,"3":1500,"4":1500,"5":1500,"6":1500,"7":1500,"8":1500}
+            self.channels = {
+                "1": 1500,
+                "2": 1500,
+                "3": 1500,
+                "4": 1500,
+                "5": 1500,
+                "6": 1500,
+                "7": 1500,
+                "8": 1500,
+            }
             channels = self.channels
             channels[str(channel)] = value
 
         self.vehicle.channels.overrides = channels
         self.vehicle.flush()
-    
+
     def channelClear(self):
         """
         Clear override on all channels.
         """
-        self.channels = {"1":1500,"2":1500,"3":1500,"4":1500,"5":1500,"6":1500,"7":1500,"8":1500}
+        self.channels = {
+            "1": 1500,
+            "2": 1500,
+            "3": 1500,
+            "4": 1500,
+            "5": 1500,
+            "6": 1500,
+            "7": 1500,
+            "8": 1500,
+        }
         self.vehicle.channels.overrides = self.channels
         self.vehicle.flush()
-    
+
     def readRC(self):
         """
         Read RC values.
@@ -586,124 +717,123 @@ class Pilot(object):
         """
         Get pressure from pressure sensor.
         """
-        return self.vehicle.parameters['SYSID_THISMAV']['press_abs']
+        return self.vehicle.parameters["SYSID_THISMAV"]["press_abs"]
 
     # ArduPilot get temperature
     def getTemperature(self):
         """
         Get temperature from temperature sensor.
         """
-        return self.vehicle.parameters['SYSID_THISMAV']['temp']
+        return self.vehicle.parameters["SYSID_THISMAV"]["temp"]
 
     # ArduPilot get altitude
     def getAltitude(self):
         """
         Get altitude from pressure sensor.
         """
-        return self.vehicle.parameters['SYSID_THISMAV']['alt']
-    
+        return self.vehicle.parameters["SYSID_THISMAV"]["alt"]
+
     # ArduPilot get roll
     def getRoll(self):
         """
         Get roll from IMU.
         """
-        return self.vehicle.parameters['SYSID_THISMAV']['roll']
-    
+        return self.vehicle.parameters["SYSID_THISMAV"]["roll"]
+
     # ArduPilot get pitch
     def getPitch(self):
         """
         Get pitch from IMU.
         """
-        return self.vehicle.parameters['SYSID_THISMAV']['pitch']
-    
+        return self.vehicle.parameters["SYSID_THISMAV"]["pitch"]
+
     # ArduPilot get yaw
     def getYaw(self):
         """
         Get yaw from IMU.
         """
-        return self.vehicle.parameters['SYSID_THISMAV']['yaw']
-    
+        return self.vehicle.parameters["SYSID_THISMAV"]["yaw"]
+
     # ArduPilot get gps
     def getGPS(self):
         """
         Get gps from IMU.
         """
-        return self.vehicle.parameters['SYSID_THISMAV']['gps']
-    
+        return self.vehicle.parameters["SYSID_THISMAV"]["gps"]
+
     # ArduPilot get gps_heading
     def getGPSHeading(self):
         """
         Get gps heading from IMU.
         """
-        return self.vehicle.parameters['SYSID_THISMAV']['gps_heading']
-    
+        return self.vehicle.parameters["SYSID_THISMAV"]["gps_heading"]
+
     # ArduPilot get gps_alt
     def getGPSAlt(self):
         """
         Get gps altitude from IMU.
         """
-        return self.vehicle.parameters['SYSID_THISMAV']['gps_alt']
+        return self.vehicle.parameters["SYSID_THISMAV"]["gps_alt"]
 
     # ArduPilot get gps_relative_alt
     def getGPSRelAlt(self):
         """
         Get gps relative altitude from IMU.
         """
-        return self.vehicle.parameters['SYSID_THISMAV']['gps_relative_alt']
-    
+        return self.vehicle.parameters["SYSID_THISMAV"]["gps_relative_alt"]
+
     # ArduPilot get gps_ground_speed
     def getGPSGroundSpeed(self):
         """
         Get gps ground speed from IMU.
         """
-        return self.vehicle.parameters['SYSID_THISMAV']['gps_ground_speed']
+        return self.vehicle.parameters["SYSID_THISMAV"]["gps_ground_speed"]
 
     # ArduPilot get gps_heading_true
     def getGPSHeadingTrue(self):
         """
         Get gps heading from IMU.
         """
-        return self.vehicle.parameters['SYSID_THISMAV']['gps_heading_true']
-    
+        return self.vehicle.parameters["SYSID_THISMAV"]["gps_heading_true"]
+
     # ArduPilot get gps_hdop
     def getGPSHDOP(self):
         """
         Get gps hdop from IMU.
         """
-        return self.vehicle.parameters['SYSID_THISMAV']['gps_hdop']
-    
+        return self.vehicle.parameters["SYSID_THISMAV"]["gps_hdop"]
+
     # ArduPilot get gps_fix_type
     def getGPSFixType(self):
         """
         Get gps fix type from IMU.
         """
-        return self.vehicle.parameters['SYSID_THISMAV']['gps_fix_type']
-    
+        return self.vehicle.parameters["SYSID_THISMAV"]["gps_fix_type"]
+
     # ArduPilot get gps_num_sat
     def getGPSNumSat(self):
         """
         Get gps number of satellites from IMU.
         """
-        return self.vehicle.parameters['SYSID_THISMAV']['gps_num_sat']
-    
+        return self.vehicle.parameters["SYSID_THISMAV"]["gps_num_sat"]
+
     # ArduPilot get gps_lat
     def getGPSLat(self):
         """
         Get gps latitude from IMU.
         """
-        return self.vehicle.parameters['SYSID_THISMAV']['gps_lat']
-    
+        return self.vehicle.parameters["SYSID_THISMAV"]["gps_lat"]
+
     # ArduPilot get gps_lon
     def getGPSLon(self):
         """
         Get gps longitude from IMU.
         """
-        return self.vehicle.parameters['SYSID_THISMAV']['gps_lon']
-    
+        return self.vehicle.parameters["SYSID_THISMAV"]["gps_lon"]
+
     # ArduPilot get gps_alt_ellipsoid
     def getGPSAltEllipsoid(self):
         """
         Get gps altitude ellipsoid from IMU.
         """
-        return self.vehicle.parameters['SYSID_THISMAV']['gps_alt_ellipsoid']
-    
+        return self.vehicle.parameters["SYSID_THISMAV"]["gps_alt_ellipsoid"]
