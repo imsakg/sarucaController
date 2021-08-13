@@ -28,6 +28,10 @@ def goT(channel, pwm, duration):
     pilot.channelOverRide(channel, 1500)
 
 
+def gotoTest(north, east, down):
+    vehicle = pilot.goto_position_target_local_ned(north, east, down)
+
+
 def rotate(value):
     pilot.set_target_attitude(0, 0, value)
 
