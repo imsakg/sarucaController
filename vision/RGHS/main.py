@@ -1,4 +1,3 @@
-
 # encoding=utf-8
 import os
 import numpy as np
@@ -10,22 +9,22 @@ from color_equalisation import RGB_equalisation
 from global_stretching_RGB import stretching
 from relativeglobalhistogramstretching import RelativeGHstretching
 
-np.seterr(over='ignore')
-if __name__ == '__main__':
+np.seterr(over="ignore")
+if __name__ == "__main__":
     pass
 
-folder = "/home/msa/Projects/UUVs/saruca/sarucaController/vision/underwaterTests/utils/inputs/"
-path = folder + "/MOV00016"
+folder = "/home/msa/Projects/UUVs/saruca/sarucaController/vision/toFrames/outputs"  # input image folder
+path = folder + "/MOV00016"  # input image
 files = os.listdir(path)
-files =  natsort.natsorted(files)
+files = natsort.natsorted(files)
 
 for i in range(len(files)):
     file = files[i]
     filepath = path + "/" + file
-    prefix = file.split('.')[0]
+    prefix = file.split(".")[0]
     if os.path.isfile(filepath):
-        print('********    file   ********',file)
-        img = cv2.imread(folder +'/MOV00016/' + file)
+        print("********    file   ********", file)
+        img = cv2.imread(folder + "/MOV00016/" + file)  # input image
         img = cv2.resize(img, (640, 480))
         # img = cv2.imread('InputImages/' + file)
         # path = np.unicode(path, 'utf-8')
@@ -43,8 +42,6 @@ for i in range(len(files)):
 
         sceneRadiance = stretching(sceneRadiance)
 
-
         sceneRadiance = LABStretching(sceneRadiance)
 
-
-        cv2.imwrite('OutputImages/' + prefix + '_RGHS.jpg', sceneRadiance)
+        cv2.imwrite("OutputImages/" + prefix + "_RGHS.jpg", sceneRadiance)

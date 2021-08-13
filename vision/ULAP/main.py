@@ -15,36 +15,40 @@ from refinedTransmissionMap import refinedtransmissionMap
 
 from sceneRadiance import sceneRadianceRGB
 
-np.seterr(over='ignore')
-if __name__ == '__main__':
+np.seterr(over="ignore")
+if __name__ == "__main__":
     pass
 
 starttime = datetime.datetime.now()
 
-folder = "/home/msa/Projects/UUVs/saruca/sarucaController/vision/underwaterTests/utils/inputs/"
-path = folder + "/MOV00016"
+folder = (
+    "/home/msa/Projects/UUVs/saruca/sarucaController/vision/RGHS/"  # input image folder
+)
+path = folder + "/OutputImages"  # input image
 files = os.listdir(path)
-files =  natsort.natsorted(files)
+files = natsort.natsorted(files)
 
 for i in range(len(files)):
     file = files[i]
     filepath = path + "/" + file
-    prefix = file.split('.')[0]
+    prefix = file.split(".")[0]
     if os.path.isfile(filepath):
-        print('********    file   ********',file)
-        img = cv2.imread(folder +'/MOV00016/' + file)
+        print("********    file   ********", file)
+        img = cv2.imread(folder + "/OutputImages/" + file)
 
         blockSize = 9
-        gimfiltR = 50 
+        gimfiltR = 50
         eps = 10 ** -3
 
         DepthMap = depthMap(img)
         DepthMap = global_stretching(DepthMap)
         guided_filter = GuidedFilter(img, gimfiltR, eps)
         refineDR = guided_filter.filter(DepthMap)
-        refineDR = np.clip(refineDR, 0,1)
+        refineDR = np.clip(refineDR, 0, 1)
 
-        cv2.imwrite('OutputImages/' + prefix + '_ULAPDepthMap.jpg', np.uint8(refineDR * 255))
+        cv2.imwrite(
+            "OutputImages/" + prefix + "_ULAPDepthMap.jpg", np.uint8(refineDR * 255)
+        )
 
         AtomsphericLight = BLEstimation(img, DepthMap) * 255
 
@@ -52,17 +56,19 @@ for i in range(len(files)):
         d_f = 8 * (DepthMap + d_0)
         transmissionB, transmissionG, transmissionR = getRGBTransmissionESt(d_f)
 
-        transmission = refinedtransmissionMap(transmissionB, transmissionG, transmissionR, img)
+        transmission = refinedtransmissionMap(
+            transmissionB, transmissionG, transmissionR, img
+        )
         sceneRadiance = sceneRadianceRGB(img, transmission, AtomsphericLight)
 
+        cv2.imwrite(
+            "OutputImages/" + prefix + "_ULAP_TM.jpg",
+            np.uint8(transmission[:, :, 2] * 255),
+        )
 
-        cv2.imwrite('OutputImages/' + prefix + '_ULAP_TM.jpg', np.uint8(transmission[:, :, 2] * 255))
-
-        cv2.imwrite('OutputImages/' + prefix + '_ULAP.jpg', sceneRadiance)
+        cv2.imwrite("OutputImages/" + prefix + "_ULAP.jpg", sceneRadiance)
 
 
 Endtime = datetime.datetime.now()
 Time = Endtime - starttime
-print('Time', Time)
-
-
+print("Time", Time)
