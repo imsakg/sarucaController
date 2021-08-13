@@ -1,7 +1,8 @@
 import time
 
+
 class visionType(object):
-    def __init__(self,coordinates : list = [], time : float = time.time()):
+    def __init__(self, coordinates: list = [], time: float = time.time()):
         self.coordinates = coordinates
         self.time = time
 
@@ -20,14 +21,14 @@ class visionType(object):
         yield self.coordinates
         yield self.time
 
-    def __getitem__(self,index):
+    def __getitem__(self, index):
         if index == 0:
             return self.coordinates
         elif index == 1:
             return self.time
         else:
             raise Exception(f"Out Of Index {index}")
-    
+
     @staticmethod
     def x(self):
         return self.coordinates[0]
