@@ -8,27 +8,31 @@ import re
 from pymavlink import mavutil
 from queue import Empty
 
-if platform.system() == 'Windows':
+if platform.system() == "Windows":
     from errno import WSAECONNRESET as ECONNABORTED
 else:
     from errno import ECONNABORTED
 
 import droneapi.module.api as api
 
+
 def errprinter(*args):
     print(*args, file=sys.stderr)
 
+
 def wait_read(sock):
     while True:
-        inputready, outputready, exceptready = select.select([sock],[],[],.1)
+        inputready, outputready, exceptready = select.select([sock], [], [], 0.1)
         if len(inputready):
             break
 
+
 def wait_write(sock):
     while True:
-        inputready, outputready, exceptready = select.select([],[sock],[],.1)
+        inputready, outputready, exceptready = select.select([], [sock], [], 0.1)
         if len(outputready):
             break
+
 
 def spawn(target, *args):
     t = Thread(target=target, args=args)
@@ -36,21 +40,22 @@ def spawn(target, *args):
     t.start()
     return t
 
+
 def udp(port):
     sock = socket.socket(type=socket.SOCK_DGRAM)
 
     in_queue = Queue()
-    out_queue = Queue() 
+    out_queue = Queue()
 
     def read():
         while True:
             try:
                 wait_read(sock.fileno())
                 data, address = sock.recvfrom(port)
-                #print(role, 'received %s:%s: got %r' % (address + (data, )))
+                # print(role, 'received %s:%s: got %r' % (address + (data, )))
                 in_queue.put((data, address))
             except socket.error as e:
-                print('Socket error:', e)
+                print("Socket error:", e)
                 break
 
     def write():
@@ -58,10 +63,10 @@ def udp(port):
             try:
                 wait_write(sock.fileno())
                 (msg, target) = out_queue.get()
-                #print(role, 'sending %s' % msg)
-                out_bytes = sock.sendto(msg, ('0.0.0.0', target))
+                # print(role, 'sending %s' % msg)
+                out_bytes = sock.sendto(msg, ("0.0.0.0", target))
             except socket.error as e:
-                print('Socket error:', e)
+                print("Socket error:", e)
                 break
 
     thr = spawn(read)
@@ -69,7 +74,8 @@ def udp(port):
 
     return (in_queue, out_queue, thr, thw)
 
-class MavWriter():
+
+class MavWriter:
     def __init__(self, queue):
         self.queue = queue
 
@@ -77,27 +83,43 @@ class MavWriter():
         self.queue.put(pkt)
 
     def read(self):
-        errprinter('writer should not have had a read request')
+        errprinter("writer should not have had a read request")
         os._exit(43)
 
+
 def send_heartbeat(master):
-    master.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_GCS, mavutil.mavlink.MAV_AUTOPILOT_INVALID, 0, 0, 0)
+    master.mav.heartbeat_send(
+        mavutil.mavlink.MAV_TYPE_GCS, mavutil.mavlink.MAV_AUTOPILOT_INVALID, 0, 0, 0
+    )
+
 
 def request_data_stream_send(master, rate=1):
-    master.mav.request_data_stream_send(master.target_system, master.target_component,
-                                        mavutil.mavlink.MAV_DATA_STREAM_ALL, rate, 1)
+    master.mav.request_data_stream_send(
+        master.target_system,
+        master.target_component,
+        mavutil.mavlink.MAV_DATA_STREAM_ALL,
+        rate,
+        1,
+    )
+
 
 from Queue import Queue
 from threading import Thread
 
+
 def forward():
-    mav = mavutil.mavlink.MAVLink(MavWriter(self.out_queue), srcSystem=0, use_native=False)
-    #self.master
+    mav = mavutil.mavlink.MAVLink(
+        MavWriter(self.out_queue), srcSystem=0, use_native=False
+    )
+    # self.master
 
     import atexit
+
     self.exiting = False
+
     def onexit():
         self.exiting = True
+
     atexit.register(onexit)
 
     # Wait for incoming messages.
@@ -106,7 +128,7 @@ def forward():
     def mavlink_thread():
         try:
             while True:
-                # Downtime                    
+                # Downtime
                 time.sleep(0.05)
 
                 while True:
@@ -115,12 +137,14 @@ def forward():
                         self.master.write(msg)
                     except socket.error as error:
                         if error.errno == ECONNABORTED:
-                            errprinter('reestablishing connection after read timeout')
+                            errprinter("reestablishing connection after read timeout")
                             try:
                                 self.master.close()
                             except:
                                 pass
-                            self.master = mavutil.mavlink_connection(self.master.address)
+                            self.master = mavutil.mavlink_connection(
+                                self.master.address
+                            )
                             continue
 
                         # If connection reset (closed), stop polling.
@@ -128,7 +152,7 @@ def forward():
                     except Empty:
                         break
                     except Exception as e:
-                        errprinter('mav send error:', e)
+                        errprinter("mav send error:", e)
                         break
 
                 while True:
@@ -136,12 +160,14 @@ def forward():
                         msg = self.master.recv_msg()
                     except socket.error as error:
                         if error.errno == ECONNABORTED:
-                            errprinter('reestablishing connection after send timeout')
+                            errprinter("reestablishing connection after send timeout")
                             try:
                                 self.master.close()
                             except:
                                 pass
-                            self.master = mavutil.mavlink_connection(self.master.address)
+                            self.master = mavutil.mavlink_connection(
+                                self.master.address
+                            )
                             continue
 
                         return
@@ -159,18 +185,17 @@ def forward():
             else:
                 raise e
 
-
     t = Thread(target=mavlink_thread)
     t.daemon = True
     t.start()
 
-    print('udpin:127.0.0.1:6760')
+    print("udpin:127.0.0.1:6760")
 
     t.join()
     thr.join()
     thw.join()
 
-    print('done.')
+    print("done.")
 
 
 # def connect(ip, await_params=False, status_printer=errprinter):
