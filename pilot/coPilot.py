@@ -10,7 +10,6 @@ pilot.launch()
 pilot.changeMode("MANUAL")
 pilot.armForce()
 
-
 def speed2pwm(speed):
     if speed > 0:
         pwm = 1500 + speed * 10
@@ -32,14 +31,16 @@ def gotoTest(north, east, down):
     vehicle = pilot.goto_position_target_local_ned(north, east, down)
 
 
-def rotate(value):
-    pilot.set_target_attitude(0, 0, value)
-
+def rotate(value,relative=True):
+    if relative:
+        value = pilot.vehicle.heading + value
+        pilot.set_target_attitude(0, 0, value)
+    else: 
+        pilot.set_target_attitude(0, 0, value)
 
 def setDepth(depth):
-    pilot.changeMode("ALT_HOLD")
-    pilot.vehicle.location.global_relative_frame.alt = depth
-
+    #pilot.changeMode("ALT_HOLD")
+    pilot.set_target_depth(depth)
 
 def dive(depth, tolorance=0.7, diveSpeed=-15):
     pilot.changeMode("ALT_HOLD")
@@ -83,7 +84,6 @@ def yaw(speed=10, duration=1):
 def pitch(speed=10, duration=1):
     pwm = speed2pwm(speed)
     goT(channel=5, pwm=pwm, duration=duration)
-
 
 def transform(speed=10, duration=1):
     pwm = speed2pwm(speed)
@@ -137,3 +137,47 @@ def testDrone():
                     print("Reached target")
                     break
                 time.sleep(1)
+
+def startPath(firstRotate=pilot.vehicle.heading):
+    time.sleep(30)
+    firstRotate=pilot.vehicle.heading
+    print(firstRotate)
+    time.sleep(5)
+    pilot.changeMode("STABILIZE")
+    rotate(firstRotate,False)
+    time.sleep(2)
+    roll(-20,5)
+    rotate(firstRotate,False)
+    time.sleep(2)
+    roll(20,10)
+    time.sleep(2)
+    setDepth(-0.7)
+    pilot.changeMode("ALT_HOLD")
+    time.sleep(2)
+    setDepth(-0.4)
+    setDepth(-0.5)
+    time.sleep(2)
+    setDepth(-0.6)
+    setDepth(-0.7)
+    setDepth(-0.8)
+    time.sleep(7)
+    setDepth(0)
+    pilot.changeMode("STABILIZE")
+    pitch(10,6)
+    time.sleep(2)
+    rotate(-90)
+    time.sleep(2)
+    pitch(10,6)
+    time.sleep(2)
+    rotate(-90)
+    time.sleep(2)
+    pitch(10,6)
+    for i in range(8):
+        rotate(90)
+        time.sleep(2)
+    firstRotate-=180
+    rotate(firstRotate,False)
+    time.sleep(3)
+    pitch(10,2)
+    pilot.changeMode()
+
