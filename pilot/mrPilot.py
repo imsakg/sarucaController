@@ -432,7 +432,7 @@ class Pilot(object):
         At time of writing, acceleration and yaw bits are ignored.
 
         """
-        msg = self.vehicle.message_factory.set_position_target_local_ned_encode(
+        self.master.mav.set_position_target_local_ned_send(
             0,  # time_boot_ms (not used)
             0,
             0,  # target system, target component
@@ -451,7 +451,7 @@ class Pilot(object):
             0,
         )  # yaw, yaw_rate (not supported yet, ignored in GCS_Mavlink)
         # send command to vehicle
-        self.vehicle.send_mavlink(msg)
+        #self.vehicle.send_mavlink(msg)
 
     def goto(self, dNorth, dEast, alt=None, gotoFunction=Vehicle.simple_goto):
         """
@@ -579,7 +579,7 @@ class Pilot(object):
             print(self.vehicle.channels)
             time.sleep(1)
 
-    def set_target_depth(self, depth):
+    def set_target_depthEx(self, depth):
         """Sets the target depth while in depth-hold mode.
         Uses https://mavlink.io/en/messages/common.html#SET_POSITION_TARGET_GLOBAL_INT
         'depth' is technically an altitude, so set as negative meters below the surface
@@ -643,8 +643,8 @@ class Pilot(object):
             #  (all not supported yet, ignored in GCS Mavlink)
         )
 
-    def set_target_depthEx(self, depth):
-        msg = master.mav.set_position_target_global_int_send(
+    def set_target_depth(self, depth):
+        msg = self.master.mav.set_position_target_global_int_send(
             0,
             0,
             0,
@@ -662,6 +662,17 @@ class Pilot(object):
             0,
             0,
         )  # yaw, yawrate (not supported yet, ignored in GCS Mavlink)
+    
+    def position_send(self, val_x : float = 0.2, val_y : float = 0.0, val_z : float = 0.0, val_vx : float = 0.0, val_vy : float = 0.0, val_vz : float = 0.0):
+        self.master.mav.local_position_ned_send(
+            0,
+            x=val_x,
+            y=val_y,
+            z=val_z,
+            vx=val_vx,
+            vy=val_vy,
+            vz=val_vz
+        )
 
     def set_target_attitude(self, roll, pitch, yaw, control_yaw=True):
         """Sets the target attitude while in depth-hold mode.
