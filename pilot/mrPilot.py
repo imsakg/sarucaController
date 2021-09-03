@@ -451,7 +451,7 @@ class Pilot(object):
             0,
         )  # yaw, yaw_rate (not supported yet, ignored in GCS_Mavlink)
         # send command to vehicle
-        #self.vehicle.send_mavlink(msg)
+        # self.vehicle.send_mavlink(msg)
 
     def goto(self, dNorth, dEast, alt=None, gotoFunction=Vehicle.simple_goto):
         """
@@ -662,16 +662,18 @@ class Pilot(object):
             0,
             0,
         )  # yaw, yawrate (not supported yet, ignored in GCS Mavlink)
-    
-    def position_send(self, val_x : float = 0.2, val_y : float = 0.0, val_z : float = 0.0, val_vx : float = 0.0, val_vy : float = 0.0, val_vz : float = 0.0):
+
+    def position_send(
+        self,
+        val_x: float = 0.2,
+        val_y: float = 0.0,
+        val_z: float = 0.0,
+        val_vx: float = 0.0,
+        val_vy: float = 0.0,
+        val_vz: float = 0.0,
+    ):
         self.master.mav.local_position_ned_send(
-            0,
-            x=val_x,
-            y=val_y,
-            z=val_z,
-            vx=val_vx,
-            vy=val_vy,
-            vz=val_vz
+            0, x=val_x, y=val_y, z=val_z, vx=val_vx, vy=val_vy, vz=val_vz
         )
 
     def set_target_attitude(self, roll, pitch, yaw, control_yaw=True):
