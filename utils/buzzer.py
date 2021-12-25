@@ -5,7 +5,7 @@ from pymavlink import mavutil
 import time
 
 
-class Buzzer(object):
+class Buzzy(object):
     def __init__(self, vehicle):
         self.vehicle = vehicle
         self.TUNE = b""
