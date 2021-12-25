@@ -1,14 +1,61 @@
 from pilot import mrPilot
 from control import spiralScanning
 import time
+from threading import Thread
+from yolov5 import YOLOv5
+from control.exposer import Exposer
+import numpy as np
+import cv2
+import datetime
+import time
 
+expose = Exposer().expose
+device = "cuda" # or "cpu"
+model_path = "yolov5/weights/circle72H.pt" # it automatically downloads yolov5s model to given path
+
+SIMM = False #! Update
+print("allocating started")
+yolov5 = YOLOv5(model_path, device)
+print("allocating done")
 movements = spiralScanning.spiralMovements()
-movements.generate(2)
 
-pilot = mrPilot.Pilot()
-pilot.launch()
-pilot.changeMode("MANUAL")
-pilot.armForce()
+def parsePoses(box):
+    try:
+        x = box[0][0].item()
+        y = box[0][1].item()
+        w = box[0][2].item()
+        h = box[0][3].item()
+        return x,y,w,h
+    except:
+        return None
+
+def parseScore(score):
+    try:
+        score = float(score[0].item())*100
+    except:
+        score = None
+    return score
+
+def predict(frame):
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    results = yolov5.predict(frame)
+    predictions = results.pred[0]
+    boxes = predictions[:, :4] 
+    scores = predictions[:, 4]
+    categories = predictions[:, 5]
+    return predictions, boxes, scores, categories, time.time()
+
+if SIMM:
+    cap = cv2.VideoCapture(1) # update with 2
+else:
+    cap = cv2.VideoCapture(2) # update with 2
+    pilot = mrPilot.Pilot()
+    pilot.launch()
+    pilot.changeMode("MANUAL")
+    pilot.armForce()
+
+DEPTH = 0
+hasCommand = False
 
 def speed2pwm(speed):
     if speed > 0:
@@ -20,16 +67,13 @@ def speed2pwm(speed):
 
 
 def goT(channel, pwm, duration):
+    global DEPTH
     t1 = time.time()
     while time.time() - t1 < duration:
         pilot.channelOverRide(channel, pwm)
-        time.sleep(0.1)
+        setDepth(DEPTH)
+        time.sleep(1)
     pilot.channelOverRide(channel, 1500)
-
-
-def gotoTest(north, east, down):
-    vehicle = pilot.goto_position_target_local_ned(north, east, down)
-
 
 def rotate(value,relative=True):
     if relative:
@@ -39,145 +83,160 @@ def rotate(value,relative=True):
         pilot.set_target_attitude(0, 0, value)
 
 def setDepth(depth):
+    global DEPTH
     #pilot.changeMode("ALT_HOLD")
     pilot.set_target_depth(depth)
-
-def dive(depth, tolorance=0.7, diveSpeed=-15):
-    pilot.changeMode("ALT_HOLD")
-    while pilot.vehicle.location.global_relative_frame.alt >= tolorance * depth:
-        # print(pilot.vehicle.location.global_relative_frame.alt)
-        pwm = speed2pwm(diveSpeed)
-        pilot.channelOverRide(3, pwm)
-    pilot.channelOverRide(3, 1500)
-
-
-def spin(rotation="left", speed=30):
-    roll_angle = pitch_angle = 0
-    if rotation == "left":
-        # spin the other way with 3x larger steps
-        for yaw_angle in range(500, 0, -speed):
-            pilot.set_target_attitude(roll_angle, pitch_angle, yaw_angle)
-            time.sleep(1)
-    elif rotation == "right":
-        for yaw_angle in range(0, 500, speed):
-            pilot.set_target_attitude(roll_angle, pitch_angle, yaw_angle)
-            time.sleep(1)  # wait for a second
-    else:
-        raise Exception("Unknown rotation")
-
-
+    DEPTH = depth
 def roll(speed=10, duration=1):
     pwm = speed2pwm(speed)
     goT(channel=6, pwm=pwm, duration=duration)
-
 
 def throotle(speed=10, duration=1):
     pwm = speed2pwm(speed)
     goT(channel=3, pwm=pwm, duration=duration)
 
-
 def yaw(speed=10, duration=1):
     pwm = speed2pwm(speed)
     goT(channel=4, pwm=pwm, duration=duration)
 
-
 def pitch(speed=10, duration=1):
     pwm = speed2pwm(speed)
     goT(channel=5, pwm=pwm, duration=duration)
-
 def transform(speed=10, duration=1):
     pwm = speed2pwm(speed)
     goT(channel=2, pwm=pwm, duration=duration)
 
-
 def forward(speed=10, duration=1):
     pwm = speed2pwm(speed)
     goT(channel=5, pwm=pwm, duration=duration)
-
-
-def back(speed=10, duration=1):
-    pwm = speed2pwm(speed)
-    goT(channel=3, pwm=pwm, duration=duration)
-
-
-def right(speed=10, duration=1):
-    pwm = speed2pwm(speed)
-    goT(channel=3, pwm=pwm, duration=duration)
-
-
-def left(speed=10, duration=1):
-    pwm = speed2pwm(speed)
-    goT(channel=3, pwm=pwm, duration=duration)
-
-
-def down(speed=10, duration=1):
-    pwm = speed2pwm(speed)
-    goT(channel=3, pwm=pwm, duration=duration)
-
-
-def up(speed=10, duration=1):
-    pwm = speed2pwm(speed)
-    goT(channel=3, pwm=pwm, duration=duration)
-
-
-def testDrone():
-    pilot.changeMode("GUIDED")
-    pilot.arm()
-    pilot.takeoff(20)
-
-    while True:
-        for x, y in movements:
-            currentLocation, targetLocation, targetDistance = pilot.goto(x, y)
-            while pilot.vehicle.mode.name == "GUIDED":
-                remainingDistance = pilot.get_distance_metres(
-                    pilot.vehicle.location.global_relative_frame, targetLocation
-                )
-                print("Distance to target: ", remainingDistance, targetDistance * 0.2)
-                if remainingDistance <= targetDistance * 0.2:
-                    print("Reached target")
-                    break
-                time.sleep(1)
-
-def startPath(firstRotate=pilot.vehicle.heading):
-    time.sleep(30)
-    firstRotate=pilot.vehicle.heading
-    print(firstRotate)
-    time.sleep(5)
+def resetSticks(): 
+    roll(0,0.1)
+    pitch(0,0.1)
+def stabilize():
     pilot.changeMode("STABILIZE")
-    rotate(firstRotate,False)
-    time.sleep(2)
-    roll(-20,5)
-    rotate(firstRotate,False)
-    time.sleep(2)
-    roll(20,10)
-    time.sleep(2)
-    setDepth(-0.7)
+def althold():
     pilot.changeMode("ALT_HOLD")
-    time.sleep(2)
-    setDepth(-0.4)
-    setDepth(-0.5)
-    time.sleep(2)
-    setDepth(-0.6)
-    setDepth(-0.7)
-    setDepth(-0.8)
-    time.sleep(7)
-    setDepth(0)
-    pilot.changeMode("STABILIZE")
-    pitch(10,6)
-    time.sleep(2)
-    rotate(-90)
-    time.sleep(2)
-    pitch(10,6)
-    time.sleep(2)
-    rotate(-90)
-    time.sleep(2)
-    pitch(10,6)
-    for i in range(8):
-        rotate(90)
-        time.sleep(2)
-    firstRotate-=180
-    rotate(firstRotate,False)
-    time.sleep(3)
-    pitch(10,2)
-    pilot.changeMode()
+def poshold():
+    pilot.changeMode("POSHOLD")
+preded = False
+lastPred = []
+lastPredT = time.time() 
+lastScore = 0.0
+exposed = []
+def startVision():
+    global lastPredT, lastPred, preded, lastScore, exposed
+    while True:
+        _,img = cap.read()
+        if _:
+            presults, pboxes, pscores, pcategories, pT = predict(img)
+            pBox = parsePoses(pboxes)
+            pscore = parseScore(pscores)
+            if (pBox is not None) and (pscore is not None):
+                if (pscore > 70):
+                    lastPred = pBox
+                    lastPredT = time.time()
+                    preded = True
+                    lastScore = pscore
+                    exposed = expose(lastPred[0], lastPred[1], lastPred[2], lastPred[3])
+                    #print(lastPred[0], lastPred[1], lastPred[2], lastPred[3], "\n")
+                    #print(f"preded = {preded} \t last score = {lastScore} \t last prediction time = {lastPredT} \n{exposed}")
+            else:
+                lastScore = 0.0
+                preded = False
+            cv2.waitKey(1)
 
+def startVisionTH():
+    th = Thread(target = startVision)
+    th.start()
+    return th
+def poser():
+    exposed
+
+def interupt():
+    resetSticks()
+    time.sleep(2)
+    
+    althold()
+    time.sleep(1)
+    setDepth(-2)
+    throttle(-25)
+    time.sleep(25)
+    stabilize()
+def scanLinear(itter = 20, pitchT = 5, rollT = 50, rollS = 10, pitchS =15, inDepth = False, depthness = -0.6, tHead= 45):
+    hhead = 45# do it constant on tHead parameter
+    vhead= 138
+    if inDepth:
+        pilot.changeMode("ALT_HOLD")
+        setDepth(depthness)
+    else:
+        pilot.changeMode("STABILIZE")
+
+    rotate(hhead,False)
+    time.sleep(5)
+    pitch(20,15) 
+    for itt in range(itter):
+        for pitchitt in range(pitchT):
+            pitch(-15,1)
+            if preded:
+                break
+        time.sleep(2)
+        rotate(hhead,False)
+        time.sleep(2)
+        if preded:
+            break
+        for itt in range(rollT-2):
+            roll(-20, 1)
+            if preded:
+                break
+
+        if preded:
+            break
+        
+        time.sleep(2)
+        rotate(hhead,False)
+        time.sleep(2)
+        
+        for itt in range(pitchT):
+            if preded:
+                break
+            pitch(-15,1)
+        
+        time.sleep(2)
+        rotate(hhead,False)
+        time.sleep(2)
+        if preded:
+            break
+        
+        for itt in range(rollT+2):
+            if preded:
+                break
+            roll(20, 1)
+
+        time.sleep(2)
+        rotate(hhead,False)
+        time.sleep(2)
+        if preded:
+            break
+    interupt()
+
+class mission:
+    def __init__(self):
+        self.TARGET_HEAD = 180
+    
+    def startScan():
+        pass
+
+    def scanInterup(self):
+        pass
+
+    def backWorker(self):
+        pass
+stabilize()
+visionTH = startVisionTH()
+def printer():
+    while True:    
+        print(f"preded = {preded} \t last score = {lastScore} \t last prediction time = {lastPredT} \n{exposed}")
+        time.sleep(3)
+prth = Thread(target=printer)
+#prth.start()
+rotate(45, False)

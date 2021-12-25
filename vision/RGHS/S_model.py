@@ -20,8 +20,5 @@ pl.title('S-model Curve Function ',fontsize=20)# give plot a title
 pl.xlabel('Input Value',fontsize=20)# make axis labels
 pl.ylabel('Output Value',fontsize=20)
 
-
-
-
 pl.plot(x, y,color='red')  # use pylab to plot x and y
 pl.show()  # show the plot on the screen
