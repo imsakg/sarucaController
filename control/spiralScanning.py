@@ -1,6 +1,6 @@
 class spiralMovements(object):
     def __init__(self):
-        self.MOVEMENTS = [[1, 1], [0, -1], [0, -1], [1, 1], [0, 1], [0, -1]]
+        self.MOVEMENTS = [[1, -1], [1, 1]]
         self.I = 0
 
     def __next__(self):

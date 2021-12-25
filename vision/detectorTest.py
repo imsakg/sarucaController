@@ -1,16 +1,35 @@
 import numpy as np
 import cv2
 
-rLo, rHi, gLo, gHi, bLo, bHi = 190, 255, 40, 153, 75, 110
+hLo, hHi, sLo, sHi, vLo, vHi = 0, 52, 66, 250, 100, 168
 
-cap = cv2.VideoCapture("/dev/video1")
+cap = cv2.VideoCapture("/dev/video2")
+
+def nothing(x):
+    pass
+
+cv2.namedWindow("track")
+cv2.createTrackbar("hLo","track",hLo,180,nothing)
+cv2.createTrackbar("hHi","track",hHi,180,nothing)
+cv2.createTrackbar("sLo","track",sLo,255,nothing)
+cv2.createTrackbar("sHi","track",sHi,255,nothing)
+cv2.createTrackbar("vLo","track",vLo,255,nothing)
+cv2.createTrackbar("vHi","track",vHi,255,nothing)
 
 
 def detection(imageFrame):
     hsvFrame = cv2.cvtColor(imageFrame, cv2.COLOR_BGR2HSV)
+    
+    hLo, hHi, sLo, sHi, vLo, vHi = (
+            cv2.getTrackbarPos("hLo","track"),
+            cv2.getTrackbarPos("hHi","track"),
+            cv2.getTrackbarPos("sLo","track"),
+            cv2.getTrackbarPos("sHi","track"),
+            cv2.getTrackbarPos("vLo","track"),
+            cv2.getTrackbarPos("vHi","track"))
 
-    blue_lower = np.array([bLo, gLo, rLo], np.uint8)
-    blue_upper = np.array([bHi, gHi, rHi], np.uint8)
+    blue_lower = np.array([hLo, sLo, vLo], np.uint8)
+    blue_upper = np.array([hHi, sHi, vHi], np.uint8)
     blue_mask = cv2.inRange(hsvFrame, blue_lower, blue_upper)
 
     dilateKernel = np.ones((9, 9), "uint8")
@@ -18,15 +37,14 @@ def detection(imageFrame):
     morphKernel = np.ones((15, 15), "uint8")
 
     floodFillTH, thresh = cv2.threshold(blue_mask, 220, 255, cv2.THRESH_BINARY)
-    morph = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, morphKernel)
-    blur = cv2.medianBlur(morph, ksize=5)
-    erode = cv2.erode(blur, None, iterations=2)
-    dilate = cv2.dilate(erode, None, iterations=2)
+    blur = cv2.medianBlur(thresh,ksize=3)
+    erode = cv2.erode(blur, None, iterations=1)
+    dilate = cv2.dilate(erode, (7,7), iterations=2)
 
     res_blue = cv2.bitwise_and(imageFrame, imageFrame, mask=dilate)
 
     contours, hierarchy = cv2.findContours(
-        dilate, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        dilate, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE
     )
 
     for pic, contour in enumerate(contours):
@@ -56,7 +74,7 @@ def detection(imageFrame):
                 blue_mask,
                 cv2.drawContours(np.zeros(imageFrame.shape), contours, pic, 255, -1),
                 thresh,
-                morph,
+                blur,
             )
     return (
         imageFrame,
@@ -67,7 +85,7 @@ def detection(imageFrame):
         blue_mask,
         np.zeros(imageFrame.shape),
         thresh,
-        morph,
+        blur,
     )
 
 
@@ -82,7 +100,7 @@ while True:
         blue_mask,
         contours,
         thresh,
-        morph,
+        blur,
     ) = detection(img)
     img = cv2.resize(img, (200, 200))
     res_blue = cv2.resize(res_blue, (200, 200))
@@ -91,7 +109,7 @@ while True:
     dilate = cv2.resize(dilate, (200, 200))
     blue_mask = cv2.resize(blue_mask, (200, 200))
     thresh = cv2.resize(thresh, (200, 200))
-    morph = cv2.resize(morph, (200, 200))
+    blur = cv2.resize(blur, (200, 200))
     cv2.imshow("blue_mask", blue_mask)
     cv2.imshow("contours", contours)
     cv2.imshow("dilate", dilate)
@@ -100,7 +118,7 @@ while True:
     cv2.imshow("res_blue", res_blue)
     cv2.imshow("frame", img)
     cv2.imshow("thresh", thresh)
-    cv2.imshow("morph", morph)
+    cv2.imshow("blur", blur)
     cv2.moveWindow("blue_mask", 0, 0)
     cv2.moveWindow("dilate", 0, 250)
     cv2.moveWindow("contours", 0, 500)
@@ -108,7 +126,7 @@ while True:
     cv2.moveWindow("res_blue", 400, 250)
     cv2.moveWindow("frame", 400, 500)
     cv2.moveWindow("thresh", 800, 250)
-    cv2.moveWindow("morph", 800, 500)
+    cv2.moveWindow("blur", 800, 500)
 
     if cv2.waitKey(1) & 0xFF == ord("q"):
         cv2.destroyAllWindows()
