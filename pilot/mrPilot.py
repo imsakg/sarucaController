@@ -39,14 +39,14 @@ class Pilot(object):
             16: "POSHOLD",
             19: "MANUAL",
         }
-        self._initialize = True
-        self.wait_ready = None
+        self._initialize = None
+        self.wait_ready = True
         self.timeout = 30
         self.still_waiting_interval = 1
         self.status_printer = None
         self.vehicle_class = None
         self.rate = 4
-        self.baud = 115200
+        self.baud = 57600
         self.heartbeat_timeout = 60
         self.source_system = 255
         self.source_component = 0
@@ -56,7 +56,7 @@ class Pilot(object):
         self.connection_string = "/dev/ttyACM0"
         self.vehicle = connect(self.connection_string, wait_ready=True)
 
-    def launch(self, deafultMode="MANUAL", udp=False, baudRate=115200, port=14550):
+    def launch(self, deafultMode="MANUAL", udp=False, baudRate=57600, port=14550):
         print("Connecting to vehicle on:\t", self.connection_string)
         # self.vehicle = connect(self.connection_string, wait_ready=True)
         self.handler = MAVConnection(
@@ -740,133 +740,58 @@ class Pilot(object):
         self.vehicle.flush()
 
     def readRC(self):
-        """
-        Read RC values.
-        """
         return self.vehicle.channels
 
-    # ArduPilot get pressure
     def getPressure(self):
-        """
-        Get pressure from pressure sensor.
-        """
         return self.vehicle.parameters["SYSID_THISMAV"]["press_abs"]
 
-    # ArduPilot get temperature
     def getTemperature(self):
-        """
-        Get temperature from temperature sensor.
-        """
         return self.vehicle.parameters["SYSID_THISMAV"]["temp"]
 
-    # ArduPilot get altitude
     def getAltitude(self):
-        """
-        Get altitude from pressure sensor.
-        """
         return self.vehicle.parameters["SYSID_THISMAV"]["alt"]
 
-    # ArduPilot get roll
     def getRoll(self):
-        """
-        Get roll from IMU.
-        """
         return self.vehicle.parameters["SYSID_THISMAV"]["roll"]
 
-    # ArduPilot get pitch
     def getPitch(self):
-        """
-        Get pitch from IMU.
-        """
         return self.vehicle.parameters["SYSID_THISMAV"]["pitch"]
 
-    # ArduPilot get yaw
     def getYaw(self):
-        """
-        Get yaw from IMU.
-        """
         return self.vehicle.parameters["SYSID_THISMAV"]["yaw"]
 
-    # ArduPilot get gps
     def getGPS(self):
-        """
-        Get gps from IMU.
-        """
         return self.vehicle.parameters["SYSID_THISMAV"]["gps"]
 
-    # ArduPilot get gps_heading
     def getGPSHeading(self):
-        """
-        Get gps heading from IMU.
-        """
         return self.vehicle.parameters["SYSID_THISMAV"]["gps_heading"]
 
-    # ArduPilot get gps_alt
     def getGPSAlt(self):
-        """
-        Get gps altitude from IMU.
-        """
         return self.vehicle.parameters["SYSID_THISMAV"]["gps_alt"]
 
-    # ArduPilot get gps_relative_alt
     def getGPSRelAlt(self):
-        """
-        Get gps relative altitude from IMU.
-        """
         return self.vehicle.parameters["SYSID_THISMAV"]["gps_relative_alt"]
 
-    # ArduPilot get gps_ground_speed
     def getGPSGroundSpeed(self):
-        """
-        Get gps ground speed from IMU.
-        """
         return self.vehicle.parameters["SYSID_THISMAV"]["gps_ground_speed"]
 
-    # ArduPilot get gps_heading_true
     def getGPSHeadingTrue(self):
-        """
-        Get gps heading from IMU.
-        """
         return self.vehicle.parameters["SYSID_THISMAV"]["gps_heading_true"]
 
-    # ArduPilot get gps_hdop
     def getGPSHDOP(self):
-        """
-        Get gps hdop from IMU.
-        """
         return self.vehicle.parameters["SYSID_THISMAV"]["gps_hdop"]
 
-    # ArduPilot get gps_fix_type
     def getGPSFixType(self):
-        """
-        Get gps fix type from IMU.
-        """
         return self.vehicle.parameters["SYSID_THISMAV"]["gps_fix_type"]
 
-    # ArduPilot get gps_num_sat
     def getGPSNumSat(self):
-        """
-        Get gps number of satellites from IMU.
-        """
         return self.vehicle.parameters["SYSID_THISMAV"]["gps_num_sat"]
 
-    # ArduPilot get gps_lat
     def getGPSLat(self):
-        """
-        Get gps latitude from IMU.
-        """
         return self.vehicle.parameters["SYSID_THISMAV"]["gps_lat"]
 
-    # ArduPilot get gps_lon
     def getGPSLon(self):
-        """
-        Get gps longitude from IMU.
-        """
         return self.vehicle.parameters["SYSID_THISMAV"]["gps_lon"]
 
-    # ArduPilot get gps_alt_ellipsoid
     def getGPSAltEllipsoid(self):
-        """
-        Get gps altitude ellipsoid from IMU.
-        """
         return self.vehicle.parameters["SYSID_THISMAV"]["gps_alt_ellipsoid"]

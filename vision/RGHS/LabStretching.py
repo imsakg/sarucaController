@@ -1,5 +1,5 @@
 import cv2
-from skimage.color import rgb2hsv,hsv2rgb
+from skimage.color import rgb2hsv, hsv2rgb
 import numpy as np
 from skimage.color import rgb2lab, lab2rgb
 
@@ -7,9 +7,7 @@ from global_StretchingL import global_stretching
 from global_stretching_ab import global_Stretching_ab
 
 
-def  LABStretching(sceneRadiance):
-
-
+def LABStretching(sceneRadiance):
     sceneRadiance = np.clip(sceneRadiance, 0, 255)
     sceneRadiance = np.uint8(sceneRadiance)
     height = len(sceneRadiance)
@@ -21,30 +19,13 @@ def  LABStretching(sceneRadiance):
     img_a_stretching = global_Stretching_ab(a, height, width)
     img_b_stretching = global_Stretching_ab(b, height, width)
 
-    labArray = np.zeros((height, width, 3), 'float64')
+    labArray = np.zeros((height, width, 3), "float64")
     labArray[:, :, 0] = img_L_stretching
     labArray[:, :, 1] = img_a_stretching
     labArray[:, :, 2] = img_b_stretching
     img_rgb = lab2rgb(labArray) * 255
 
-
-
     return img_rgb
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     sceneRadiance = np.clip(sceneRadiance, 0, 255)
     sceneRadiance = np.uint8(sceneRadiance)
